@@ -210,6 +210,36 @@ export const cacheKeys = {
    * 分类列表缓存键
    */
   allCategories: () => 'notion:categories:all',
+
+  // ============================================================================
+  // 扩展缓存键（为 content-domain 模块提供）
+  // ============================================================================
+
+  /**
+   * 文章相关缓存键
+   */
+  posts: {
+    all: (...args: string[]) => `notion:posts:all:${args.join(':')}`,
+    published: (...args: string[]) => `notion:posts:published:${args.join(':')}`,
+    byTag: (tag: string, ...args: string[]) => `notion:posts:tag:${tag}:${args.join(':')}`,
+    byCategory: (category: string, ...args: string[]) => `notion:posts:category:${category}:${args.join(':')}`,
+    bySlug: (slug: string) => `notion:posts:slug:${slug}`,
+    recent: (limit: number) => `notion:posts:recent:${limit}`,
+  },
+
+  /**
+   * 标签相关缓存键
+   */
+  tags: {
+    all: () => 'notion:tags:all',
+  },
+
+  /**
+   * 分类相关缓存键
+   */
+  categories: {
+    all: () => 'notion:categories:all',
+  },
 };
 
 // ============================================================================
@@ -223,6 +253,36 @@ export const cacheTags = {
   NOTION_DATABASE: 'notion:database',
   NOTION_PAGES: 'notion:pages',
   NOTION_PAGE: (id: string) => `notion:page:${id}`,
+
+  // ============================================================================
+  // 扩展缓存标签（为 content-domain 模块提供）
+  // ============================================================================
+
+  /**
+   * 文章相关缓存标签
+   */
+  posts: {
+    all: 'notion:posts:all',
+    published: 'notion:posts:published',
+    byTag: (tag: string) => `notion:posts:tag:${tag}`,
+    byCategory: (category: string) => `notion:posts:category:${category}`,
+    bySlug: (slug: string) => `notion:posts:slug:${slug}`,
+    recent: 'notion:posts:recent',
+  },
+
+  /**
+   * 标签相关缓存标签
+   */
+  tags: {
+    all: 'notion:tags:all',
+  },
+
+  /**
+   * 分类相关缓存标签
+   */
+  categories: {
+    all: 'notion:categories:all',
+  },
 };
 
 // ============================================================================
