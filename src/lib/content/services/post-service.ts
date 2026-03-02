@@ -47,12 +47,54 @@ const CACHE_TTL = {
   POST_DETAIL: 3600,  // 1 小时
   TAGS: 3600,         // 1 小时
   CATEGORIES: 3600,   // 1 小时
+  ALL_PUBLISHED: 300, // 5 分钟 - 用于搜索/推荐的全量缓存
 };
+
+/**
+ * 全量已发布文章的最大数量上限
+ * 注意：超过此上限时搜索/推荐结果可能不完整
+ */
+const MAX_PUBLISHED_POSTS = 2000;
 
 /**
  * PostService 实现
  */
 class PostServiceImpl implements ContentService {
+  /**
+   * 获取所有已发布文章（带缓存）
+   * 内部方法，用于搜索和相关文章推荐
+   *
+   * 注意：默认上限为 MAX_PUBLISHED_POSTS，超过此数量结果可能不完整
+   */
+  private async getAllPublishedPostsCached(): Promise<PostSummary[]> {
+    const { client, databaseId } = getNotionClient();
+    const cacheKey = 'posts:all-published';
+
+    const posts = await withCache(
+      async () => {
+        const allPages = await queryDataSourceAll(
+          client,
+          {
+            dataSourceId: databaseId,
+            filter: {
+              property: 'Status',
+              status: {
+                equals: 'Published',
+              },
+            } as any,
+          },
+          { maxItems: MAX_PUBLISHED_POSTS }
+        );
+
+        return transformToPostSummaries(allPages as any[]);
+      },
+      cacheKey,
+      { ttl: CACHE_TTL.ALL_PUBLISHED }
+    );
+
+    return posts;
+  }
+
   /**
    * 获取所有文章（包括草稿）
    */
@@ -352,6 +394,8 @@ class PostServiceImpl implements ContentService {
   /**
    * 搜索文章（简单的标题/摘要搜索）
    * 搜索所有已发布文章，不受分页限制
+   *
+   * 注意：结果上限为 MAX_PUBLISHED_POSTS，超过此数量的文章无法被搜索到
    */
   async searchPosts(query: string): Promise<PostSummary[]> {
     if (!query || query.trim() === '') {
@@ -359,20 +403,9 @@ class PostServiceImpl implements ContentService {
     }
 
     const normalizedQuery = query.toLowerCase().trim();
-    const { client, databaseId } = getNotionClient();
 
-    // 使用 queryDataSourceAll 获取所有已发布文章
-    const allPages = await queryDataSourceAll(client, {
-      dataSourceId: databaseId,
-      filter: {
-        property: 'Status',
-        status: {
-          equals: 'Published',
-        },
-      } as any,
-    });
-
-    const allPosts = transformToPostSummaries(allPages as any[]);
+    // 使用带缓存的全量文章获取
+    const allPosts = await this.getAllPublishedPostsCached();
 
     // 简单的本地搜索
     const matchingPosts = allPosts.filter((post) => {
@@ -389,6 +422,8 @@ class PostServiceImpl implements ContentService {
   /**
    * 获取相关文章（基于标签相似度）
    * 从所有已发布文章中筛选有共同标签的相关文章
+   *
+   * 注意：结果上限为 MAX_PUBLISHED_POSTS，超过此数量的文章无法被推荐
    */
   async getRelatedPosts(slug: string, limit: number = 3): Promise<PostSummary[]> {
     // 获取当前文章
@@ -398,20 +433,8 @@ class PostServiceImpl implements ContentService {
       return [];
     }
 
-    const { client, databaseId } = getNotionClient();
-
-    // 获取所有已发布文章（不受分页限制）
-    const allPages = await queryDataSourceAll(client, {
-      dataSourceId: databaseId,
-      filter: {
-        property: 'Status',
-        status: {
-          equals: 'Published',
-        },
-      } as any,
-    });
-
-    const allPosts = transformToPostSummaries(allPages as any[]);
+    // 使用带缓存的全量文章获取
+    const allPosts = await this.getAllPublishedPostsCached();
 
     // 过滤掉当前文章
     const otherPosts = allPosts.filter((post) => post.slug !== slug);
