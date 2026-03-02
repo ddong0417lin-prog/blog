@@ -50,7 +50,7 @@ export class NotionAPIError extends Error {
       cause?: Error;
     }
   ) {
-    super(message, { cause: options?.cause });
+    super(message);
     this.name = 'NotionAPIError';
     this.code = code;
     this.status = options?.status;
@@ -90,16 +90,17 @@ export class NotionAPIError extends Error {
       // 支持两种格式: 秒数(数字字符串) 或 HTTP-date (如 Wed, 21 Oct 2025 07:28:00 GMT)
       let retryAfterSeconds: number | undefined;
       if (retryAfter) {
-        // 尝试解析为整数秒数
-        const seconds = parseInt(retryAfter, 10);
-        if (!isNaN(seconds) && String(seconds) === retryAfter.trim()) {
-          retryAfterSeconds = seconds;
+        // 使用正则匹配纯数字秒数（支持前导零，如 "05"）
+        const trimmed = retryAfter.trim();
+        if (/^\d+$/.test(trimmed)) {
+          const seconds = parseInt(trimmed, 10);
+          retryAfterSeconds = Math.max(0, seconds);
         } else {
           // 尝试解析为 HTTP-date
-          const dateMs = Date.parse(retryAfter);
+          const dateMs = Date.parse(trimmed);
           if (!isNaN(dateMs)) {
             retryAfterSeconds = Math.ceil((dateMs - Date.now()) / 1000);
-            // 如果计算出的时间是负数或太远，使用默认值
+            // 如果计算出的时间是负数或太远，使用 undefined
             if (retryAfterSeconds < 0 || retryAfterSeconds > 3600) {
               retryAfterSeconds = undefined;
             }
@@ -153,18 +154,44 @@ export class ConfigurationError extends Error {
 }
 
 /**
+ * 重试退出原因
+ */
+export enum RetryExitReason {
+  NON_RETRYABLE = 'NON_RETRYABLE',
+  MAX_ATTEMPTS = 'MAX_ATTEMPTS',
+  MAX_WAIT = 'MAX_WAIT',
+  ABORTED = 'ABORTED',
+}
+
+/**
  * 重试耗尽错误
  */
 export class MaxRetriesExceededError extends Error {
   public readonly attempts: number;
   public readonly lastError: Error;
+  public readonly reason: RetryExitReason;
+  public readonly totalWaitMs?: number;
 
-  constructor(attempts: number, lastError: Error) {
+  constructor(
+    attempts: number,
+    lastError: Error,
+    reason: RetryExitReason = RetryExitReason.MAX_ATTEMPTS,
+    totalWaitMs?: number
+  ) {
+    const reasonText = {
+      [RetryExitReason.NON_RETRYABLE]: 'Non-retryable error',
+      [RetryExitReason.MAX_ATTEMPTS]: 'Maximum attempts reached',
+      [RetryExitReason.MAX_WAIT]: 'Maximum wait time exceeded',
+      [RetryExitReason.ABORTED]: 'Retry aborted',
+    }[reason];
+
     super(
-      `Maximum retry attempts (${attempts}) exceeded. Last error: ${lastError.message}`
+      `${reasonText} after ${attempts} attempt(s). Last error: ${lastError.message}`
     );
     this.name = 'MaxRetriesExceededError';
     this.attempts = attempts;
     this.lastError = lastError;
+    this.reason = reason;
+    this.totalWaitMs = totalWaitMs;
   }
 }

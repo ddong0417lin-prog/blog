@@ -38,6 +38,7 @@ export {
   ConfigurationError,
   MaxRetriesExceededError,
   NotionErrorCode,
+  RetryExitReason,
 } from './errors';
 
 // ============================================================================
@@ -53,6 +54,7 @@ export {
   MAX_RETRY_ATTEMPTS,
   BASE_DELAY_MS,
   MAX_DELAY_MS,
+  DEFAULT_MAX_WAIT_MS,
   type RetryConfig,
   type RetryContext,
   type RetryResult,

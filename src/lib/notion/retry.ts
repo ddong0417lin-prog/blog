@@ -12,7 +12,7 @@
  * @module content-source/retry
  */
 
-import { NotionAPIError, NotionErrorCode, MaxRetriesExceededError } from './errors';
+import { NotionAPIError, NotionErrorCode, MaxRetriesExceededError, RetryExitReason } from './errors';
 
 // ============================================================================
 // 常量定义
@@ -27,8 +27,8 @@ export const BASE_DELAY_MS = 1000;
 /** 最大延迟（毫秒）- 16秒 */
 export const MAX_DELAY_MS = 16_000;
 
-/** 最大等待时间（毫秒）- 30秒 */
-export const MAX_WAIT_MS = 30_000;
+/** 默认最大等待时间（毫秒）- 30秒 */
+export const DEFAULT_MAX_WAIT_MS = 30_000;
 
 // ============================================================================
 // 类型定义
@@ -44,6 +44,10 @@ export interface RetryConfig {
   baseDelayMs?: number;
   /** 最大延迟（毫秒） */
   maxDelayMs?: number;
+  /** 最大等待时间（毫秒） */
+  maxWaitMs?: number;
+  /** 取消信号 */
+  signal?: AbortSignal;
 }
 
 /**
@@ -94,9 +98,10 @@ export function calculateBackoffDelay(
 }
 
 /**
- * 计算包含 jitter 的延迟
+ * 计算包含 full jitter 的延迟
  *
- * Jitter 可以避免多个客户端同时重试导致的"惊群效应"
+ * Full jitter: 0 ~ backoff 之间的随机值
+ * 比 ±25% jitter 更能有效避免惊群效应
  *
  * @param attempt - 当前尝试次数
  * @param baseDelayMs - 基础延迟
@@ -109,9 +114,8 @@ export function calculateJitteredDelay(
   maxDelayMs: number = MAX_DELAY_MS
 ): number {
   const baseDelay = calculateBackoffDelay(attempt, baseDelayMs, maxDelayMs);
-  // 添加 ±25% 的随机 jitter
-  const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
-  return Math.max(0, Math.floor(baseDelay + jitter));
+  // Full jitter: 0 ~ baseDelay 之间的随机值
+  return Math.floor(Math.random() * baseDelay);
 }
 
 // ============================================================================
@@ -119,10 +123,33 @@ export function calculateJitteredDelay(
 // ============================================================================
 
 /**
- * 休眠指定时间
+ * 休眠指定时间，支持取消信号
  */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // 如果已经取消，立即拒绝
+    if (signal?.aborted) {
+      reject(new Error('Retry aborted'));
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      cleanup();
+      clearTimeout(timeout);
+      reject(new Error('Retry aborted'));
+    };
+
+    const cleanup = () => {
+      signal?.removeEventListener('abort', onAbort);
+    };
+
+    signal?.addEventListener('abort', onAbort);
+  });
 }
 
 /**
@@ -133,6 +160,7 @@ function sleep(ms: number): Promise<void> {
  * @param config - 重试配置
  * @returns 操作结果
  * @throws {MaxRetriesExceededError} 当重试次数耗尽时
+ * @throws {Error} 当遇到不可重试错误时直接抛出原始错误
  *
  * @example
  * ```typescript
@@ -151,12 +179,21 @@ export async function withRetry<T>(
     maxAttempts = MAX_RETRY_ATTEMPTS,
     baseDelayMs = BASE_DELAY_MS,
     maxDelayMs = MAX_DELAY_MS,
+    maxWaitMs = DEFAULT_MAX_WAIT_MS,
+    signal,
   } = config;
 
   let lastError: Error | undefined;
   let totalWaitMs = 0;
+  let exitReason: RetryExitReason | undefined;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // 检查是否已取消
+    if (signal?.aborted) {
+      exitReason = RetryExitReason.ABORTED;
+      break;
+    }
+
     try {
       const result = await operation({
         attempt: attempt + 1,
@@ -182,8 +219,15 @@ export async function withRetry<T>(
       // 检查是否是可重试错误
       const shouldRetry = isRetryableError(error);
 
-      if (!shouldRetry || attempt >= maxAttempts - 1) {
-        // 不可重试或已达到最大重试次数
+      if (!shouldRetry) {
+        // 不可重试错误，直接抛出，不包装为 MaxRetriesExceededError
+        exitReason = RetryExitReason.NON_RETRYABLE;
+        throw lastError;
+      }
+
+      if (attempt >= maxAttempts - 1) {
+        // 已达到最大重试次数
+        exitReason = RetryExitReason.MAX_ATTEMPTS;
         break;
       }
 
@@ -208,12 +252,13 @@ export async function withRetry<T>(
       }
 
       // 检查是否超过最大等待时间
-      if (totalWaitMs + delayMs > MAX_WAIT_MS) {
+      if (totalWaitMs + delayMs > maxWaitMs) {
         if (process.env.NODE_ENV === 'development') {
           console.log(
             `[Retry] ${operationName} would exceed max wait time, stopping retries`
           );
         }
+        exitReason = RetryExitReason.MAX_WAIT;
         break;
       }
 
@@ -226,12 +271,20 @@ export async function withRetry<T>(
         );
       }
 
-      await sleep(delayMs);
+      try {
+        await sleep(delayMs, signal);
+      } catch (abortError) {
+        // 被取消
+        exitReason = RetryExitReason.ABORTED;
+        break;
+      }
     }
   }
 
-  // 重试次数耗尽
-  throw new MaxRetriesExceededError(maxAttempts, lastError!);
+  // 重试退出，根据原因抛出不同的错误
+  const attemptsUsed = exitReason === RetryExitReason.NON_RETRYABLE ? 1 : maxAttempts;
+
+  throw new MaxRetriesExceededError(attemptsUsed, lastError!, exitReason);
 }
 
 /**
@@ -248,15 +301,9 @@ export function isRetryableError(error: unknown): boolean {
     return error.retryable;
   }
 
-  // 网络错误（fetch 失败等）
-  if (error instanceof TypeError && 'fetch' in globalThis) {
-    const message = error.message.toLowerCase();
-    return (
-      message.includes('fetch') ||
-      message.includes('network') ||
-      message.includes('timeout') ||
-      message.includes('abort')
-    );
+  // 网络错误（fetch 失败等）- 简化判断，只要 TypeError 就认为可能可重试
+  if (error instanceof TypeError) {
+    return true;
   }
 
   return false;
@@ -270,6 +317,7 @@ export function isRetryableError(error: unknown): boolean {
  * 带降级策略的操作执行
  *
  * 当主操作失败时，尝试执行降级操作
+ * 仅对可重试错误触发降级，编程错误直接抛出
  *
  * @param primary - 主操作
  * @param fallback - 降级操作
@@ -287,13 +335,23 @@ export async function withFallback<T>(
     const { result } = await withRetry(primary, operationName, config);
     return result;
   } catch (error) {
+    // 仅对可重试错误触发降级
+    const lastError = error instanceof MaxRetriesExceededError
+      ? error.lastError
+      : (error instanceof Error ? error : new Error(String(error)));
+
+    if (!isRetryableError(lastError)) {
+      // 不可重试错误，直接抛出
+      throw error;
+    }
+
     if (process.env.NODE_ENV === 'development') {
       console.log(
         `[Fallback] ${operationName} primary failed, using fallback:`,
-        error instanceof Error ? error.message : error
+        lastError.message
       );
     }
-    return fallback(error instanceof Error ? error : new Error(String(error)));
+    return fallback(lastError);
   }
 }
 
