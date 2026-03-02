@@ -17,7 +17,9 @@
       "Bash(npm install tailwindcss@3 postcss autoprefixer)",
       "Bash(npm install @notionhq/client)",
       "Bash(npx tsc --noEmit)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git commit:*)",
+      "Bash(npx shadcn@latest add navigation-menu -y)"
     ]
   }
 }
