@@ -5,6 +5,7 @@ import { PostList } from '@/components/posts/PostList';
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
+  searchParams: Promise<{ startCursor?: string }>;
 }
 
 export async function generateStaticParams() {
@@ -24,24 +25,30 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   };
 }
 
-export default async function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { category } = await params;
-  const decodedCategory = decodeURIComponent(category);
+  const { startCursor } = await searchParams;
+  const decodedSlug = decodeURIComponent(category);
 
-  const { data: posts, hasMore, nextCursor } = await getPostsByCategory(decodedCategory, {
+  // 通过 slug 映射回 name
+  const allCategories = await getAllCategories();
+  const categoryEntity = allCategories.find((cat) => cat.slug === decodedSlug);
+
+  if (!categoryEntity) {
+    notFound();
+  }
+
+  const { data: posts, hasMore, nextCursor } = await getPostsByCategory(categoryEntity.name, {
     pageSize: 12,
+    startCursor,
     sortBy: 'publishedAt',
     sortOrder: 'desc',
   });
 
-  if (posts.length === 0) {
-    notFound();
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">{decodedCategory}</h1>
+        <h1 className="text-4xl font-bold mb-2">{categoryEntity.name}</h1>
         <p className="text-muted-foreground">
           共 {posts.length} 篇文章
         </p>

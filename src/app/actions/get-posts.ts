@@ -124,3 +124,21 @@ export const getRelatedPosts = unstable_cache(
     tags: ['posts'],
   }
 );
+
+/**
+ * 获取所有已发布文章（全量，用于 sitemap）
+ * 不受分页限制，返回所有文章摘要
+ */
+export const getAllPublishedPosts = unstable_cache(
+  async () => {
+    // 使用 searchPosts 的内部逻辑获取全量文章
+    // searchPosts 内部调用 getAllPublishedPostsCached，已实现全量获取
+    const allPosts = await postService.searchPosts('');
+    return allPosts;
+  },
+  ['all-published-posts'],
+  {
+    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
+    tags: ['posts'],
+  }
+);

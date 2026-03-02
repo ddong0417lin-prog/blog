@@ -5,6 +5,7 @@ import { PostList } from '@/components/posts/PostList';
 
 interface TagPageProps {
   params: Promise<{ tag: string }>;
+  searchParams: Promise<{ startCursor?: string }>;
 }
 
 export async function generateStaticParams() {
@@ -24,25 +25,31 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
   };
 }
 
-export default async function TagPage({ params }: TagPageProps) {
+export default async function TagPage({ params, searchParams }: TagPageProps) {
   const { tag } = await params;
-  const decodedTag = decodeURIComponent(tag);
+  const { startCursor } = await searchParams;
+  const decodedSlug = decodeURIComponent(tag);
 
-  const { data: posts, hasMore, nextCursor } = await getPostsByTag(decodedTag, {
+  // 通过 slug 映射回 name
+  const allTags = await getAllTags();
+  const tagEntity = allTags.find((t) => t.slug === decodedSlug);
+
+  if (!tagEntity) {
+    notFound();
+  }
+
+  const { data: posts, hasMore, nextCursor } = await getPostsByTag(tagEntity.name, {
     pageSize: 12,
+    startCursor,
     sortBy: 'publishedAt',
     sortOrder: 'desc',
   });
-
-  if (posts.length === 0) {
-    notFound();
-  }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">
-          <span className="text-muted-foreground">#</span> {decodedTag}
+          <span className="text-muted-foreground">#</span> {tagEntity.name}
         </h1>
         <p className="text-muted-foreground">
           共 {posts.length} 篇文章
