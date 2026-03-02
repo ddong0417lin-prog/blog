@@ -19,9 +19,14 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
   const { tag } = await params;
   const decodedTag = decodeURIComponent(tag);
 
+  // 通过 slug 映射回 name 以获取正确的显示名称
+  const allTags = await getAllTags();
+  const tagEntity = allTags.find((t) => t.slug === decodedTag);
+  const displayName = tagEntity?.name || decodedTag;
+
   return {
-    title: `${decodedTag} - 标签`,
-    description: `查看 ${decodedTag} 标签下的所有文章`,
+    title: `${displayName} - 标签`,
+    description: `查看 ${displayName} 标签下的所有文章`,
   };
 }
 

@@ -19,9 +19,14 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const { category } = await params;
   const decodedCategory = decodeURIComponent(category);
 
+  // 通过 slug 映射回 name 以获取正确的显示名称
+  const allCategories = await getAllCategories();
+  const categoryEntity = allCategories.find((cat) => cat.slug === decodedCategory);
+  const displayName = categoryEntity?.name || decodedCategory;
+
   return {
-    title: `${decodedCategory} - 分类`,
-    description: `查看 ${decodedCategory} 分类下的所有文章`,
+    title: `${displayName} - 分类`,
+    description: `查看 ${displayName} 分类下的所有文章`,
   };
 }
 
