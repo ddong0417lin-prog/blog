@@ -62,11 +62,11 @@ const MAX_PUBLISHED_POSTS = 2000;
 class PostServiceImpl implements ContentService {
   /**
    * 获取所有已发布文章（带缓存）
-   * 内部方法，用于搜索和相关文章推荐
+   * 公开方法，用于 sitemap 和其他需要全量文章的场景
    *
    * 注意：默认上限为 MAX_PUBLISHED_POSTS，超过此数量结果可能不完整
    */
-  private async getAllPublishedPostsCached(): Promise<PostSummary[]> {
+  async getAllPublishedPosts(): Promise<PostSummary[]> {
     const { client, databaseId } = getNotionClient();
     const cacheKey = 'posts:all-published';
 
@@ -93,6 +93,17 @@ class PostServiceImpl implements ContentService {
     );
 
     return posts;
+  }
+
+  /**
+   * 获取所有已发布文章（带缓存）
+   * 内部方法，用于搜索和相关文章推荐
+   *
+   * 注意：默认上限为 MAX_PUBLISHED_POSTS，超过此数量结果可能不完整
+   */
+  private async getAllPublishedPostsCached(): Promise<PostSummary[]> {
+    // 复用公开方法
+    return this.getAllPublishedPosts();
   }
 
   /**

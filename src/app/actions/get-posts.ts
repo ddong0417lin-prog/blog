@@ -131,10 +131,7 @@ export const getRelatedPosts = unstable_cache(
  */
 export const getAllPublishedPosts = unstable_cache(
   async () => {
-    // 使用 searchPosts 的内部逻辑获取全量文章
-    // searchPosts 内部调用 getAllPublishedPostsCached，已实现全量获取
-    const allPosts = await postService.searchPosts('');
-    return allPosts;
+    return postService.getAllPublishedPosts();
   },
   ['all-published-posts'],
   {

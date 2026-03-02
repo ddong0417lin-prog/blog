@@ -154,6 +154,14 @@ export interface ContentService {
    * @returns 最新文章摘要列表
    */
   getRecentPosts(limit?: number): Promise<PostSummary[]>;
+
+  /**
+   * 获取所有已发布文章（全量，用于 sitemap）
+   * 不受分页限制，返回所有已发布文章摘要
+   *
+   * @returns 所有已发布文章摘要列表
+   */
+  getAllPublishedPosts(): Promise<PostSummary[]>;
 }
 
 // ============================================================================
