@@ -41,8 +41,22 @@ export {
 } from './errors';
 
 // ============================================================================
-// 类型重导出（来自契约）
+// 重试机制
 // ============================================================================
+
+export {
+  withRetry,
+  withFallback,
+  calculateBackoffDelay,
+  calculateJitteredDelay,
+  isRetryableError,
+  MAX_RETRY_ATTEMPTS,
+  BASE_DELAY_MS,
+  MAX_DELAY_MS,
+  type RetryConfig,
+  type RetryContext,
+  type RetryResult,
+} from './retry';
 
 export type {
   NotionSource,
