@@ -6,9 +6,9 @@
  * Notion API 封装模块，提供：
  * - 客户端配置与管理
  * - 错误处理
- * - 重试机制（后续实现）
- * - 分页处理（后续实现）
- * - 缓存层（后续实现）
+ * - 重试机制
+ * - 分页处理
+ * - 缓存层
  *
  * @module content-source
  */
@@ -59,6 +59,38 @@ export {
   type RetryContext,
   type RetryResult,
 } from './retry';
+
+// ============================================================================
+// 分页处理
+// ============================================================================
+
+export {
+  queryDataSource,
+  queryDataSourceAll,
+  queryDataSourceIterator,
+  queryDataSourceParallel,
+  queryDatabase,
+  queryDatabaseAll,
+  queryDatabaseIterator,
+  queryDatabaseParallel,
+  type QueryOptions,
+  type PaginatedResult,
+  type QueryConfig,
+} from './pagination';
+
+// ============================================================================
+// 缓存层
+// ============================================================================
+
+export {
+  memoryCacheService,
+  withNextCache,
+  cacheKeys,
+  cacheTags,
+  hashObject,
+  withCache,
+  type CacheOptions,
+} from './cache';
 
 export type {
   NotionSource,
