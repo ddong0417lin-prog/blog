@@ -4,7 +4,7 @@
 - **项目名称**: Notion Blog
 - **技术栈**: Next.js + Notion + Vercel
 - **创建日期**: 2026-03-02
-- **状态**: 🟢 Phase 1 基础架构完成 (100%)
+- **状态**: 🟢 Phase 2 博客核心功能完成 (100%)
 
 ## 模块状态总览
 
@@ -12,11 +12,9 @@
 |------|------|------|--------|
 | **Phase -1: 契约冻结** | ✅ 已完成 | 100% | - |
 | **Phase 0: 基础配置** | ✅ 已完成 | 100% | Agent Team |
-| platform | ✅ 已完成 | 100% | Agent-Platform |
-| content-source | ✅ 已完成 | 100% | Agent-ContentSource |
-| content-domain | ✅ 已完成 | 100% | Agent-ContentDomain |
-| web-ui | ✅ 已完成 | 100% | Agent-WebUI |
-| features/blog | ⏳ 待开始 | 0% | - |
+| **Phase 1: 基础架构** | ✅ 已完成 | 100% | Agent Team |
+| **Phase 2: 博客核心功能** | ✅ 已完成 | 100% | Claude |
+| features/blog | ✅ 已完成 | 100% | Claude |
 | features/search | ⏳ 待开始 | 0% | - |
 | features/interaction | ⏳ 待开始 | 0% | - |
 
@@ -140,19 +138,52 @@
 
 ### 当前工作
 - ✅ Phase 1 所有模块已完成
-- 🟢 准备进入 Phase 2 博客核心功能开发
+- ✅ Phase 2 博客核心功能已完成
+- 🟢 准备进入 Phase 3 高级功能开发
 
 ---
 
-## Phase 2: 博客核心功能
+## Phase 2: 博客核心功能 ✅ 已完成 (100%)
 
-### 任务清单
-- [ ] 文章列表页 (SSG + ISR)
-- [ ] 文章详情页 (SSG + ISR)
-- [ ] 分类/标签页面
-- [ ] 代码高亮 (Shiki)
-- [ ] 响应式设计
-- [ ] SEO 优化
+### Task 1: 基础设置与 Provider ✅
+- [x] ThemeProvider 封装 (next-themes)
+- [x] Header 导航栏（响应式，移动端抽屉菜单）
+- [x] Footer 页脚组件
+- [x] 全局 metadata 配置 (Open Graph, Twitter Card)
+
+### Task 2: 文章列表页 ✅
+- [x] PostCard/PostList/PostCardSkeleton 组件
+- [x] Server Actions with unstable_cache (ISR)
+- [x] 首页文章列表分页
+
+### Task 3: 文章详情页 ✅
+- [x] PostHeader/PostContent/TableOfContents/RelatedPosts
+- [x] generateStaticParams 预渲染
+- [x] JSON-LD 结构化数据
+- [x] 目录导航高亮 (IntersectionObserver)
+
+### Task 4: 分类/标签页 ✅
+- [x] 分类列表和详情页
+- [x] 标签云（动态字体大小）
+- [x] slug → name 映射修复
+- [x] 分页透传修复
+
+### Task 5: 代码高亮 ✅
+- [x] Shiki 集成 (github-dark/github-light)
+- [x] API 路由 /api/highlight
+- [x] CodeBlock 组件
+
+### Task 6: SEO 优化 ✅
+- [x] sitemap.ts 动态生成（全量文章 + 分类 + 标签）
+- [x] robots.txt 配置
+- [x] metadata 使用实体名称
+
+### 审阅修复记录
+- ✅ 修复 slug 与名称字段不匹配 (Critical)
+- ✅ 修复分页"加载更多"失效 (Important)
+- ✅ 修复 sitemap 全量覆盖 (Important)
+- ✅ 修复 getAllPublishedPosts 返回空数组 (Critical)
+- ✅ 优化 metadata 使用实体名称 (Minor)
 
 ---
 
@@ -200,3 +231,6 @@
 | 2026-03-02 | content-source Step 3-4 完成（分页与缓存） | Claude |
 | 2026-03-02 | content-domain 模块完成（类型/工具/转换器/服务） | Agent-ContentDomain |
 | 2026-03-02 | Phase 1 基础架构全部完成 | Claude |
+| 2026-03-02 | Phase 2 博客核心功能开发完成 | Claude |
+| 2026-03-02 | Phase 2 Codex 审阅问题修复（slug/分页/sitemap） | Claude |
+| 2026-03-03 | Phase 2 最终审阅通过，准备进入 Phase 3 | Claude |
