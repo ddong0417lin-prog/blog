@@ -319,8 +319,9 @@ export function transformToPostDetail(
   // 转换内容块
   const content = blocks.map(block => transformBlockToInternal(block));
 
-  // 生成目录
-  const toc = generateToc(blocks);
+  // 根据选项决定是否生成目录（默认生成）
+  const shouldGenerateToc = options.generateToc ?? true;
+  const toc = shouldGenerateToc ? generateToc(blocks) : [];
 
   // 生成原始内容（Markdown）
   const rawContent = blocksToMarkdown(blocks);

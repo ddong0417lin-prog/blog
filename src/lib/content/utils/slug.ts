@@ -12,19 +12,6 @@
 
 import GithubSlugger from 'github-slugger';
 
-// Slugger 实例（单例）
-let slugger: GithubSlugger | null = null;
-
-/**
- * 获取或创建 Slugger 实例
- */
-function getSlugger(): GithubSlugger {
-  if (!slugger) {
-    slugger = new GithubSlugger();
-  }
-  return slugger;
-}
-
 /**
  * 中文到拼音的映射（常用字）
  * 用于基本的 transliteration
@@ -54,7 +41,7 @@ const chineseToPinyin: Record<string, string> = {
   '首': 'shou', '列': 'lie', '表': 'biao',
   '图': 'tu', '片': 'pian', '视': 'shi', '频': 'pin',
   '音': 'yin', '乐': 'le', '功': 'gong', '能': 'neng',
-  '文': 'wen', // 合并重复
+  '文': 'wen',
 };
 
 /**
@@ -87,6 +74,9 @@ function transliterateChinese(text: string): string {
 /**
  * 从标题生成 slug
  *
+ * 每次调用使用新的 GithubSlugger 实例，确保同标题多次调用输出一致。
+ * 冲突去重由 resolveSlugConflict 或 generateUniqueSlug 控制。
+ *
  * @param title - 文章标题
  * @returns URL 友好的 slug 字符串
  */
@@ -104,8 +94,8 @@ export function generateSlug(title: string): string {
     slugText = transliterateChinese(title);
   }
 
-  // 使用 github-slugger 生成规范的 slug
-  const slugger = getSlugger();
+  // 每次调用使用新实例，确保结果稳定
+  const slugger = new GithubSlugger();
   return slugger.slug(slugText);
 }
 

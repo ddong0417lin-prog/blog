@@ -26,6 +26,7 @@ import {
   queryDataSource,
   queryDataSourceAll,
   withCache,
+  retrieveBlockChildrenAll,
 } from '@/lib/notion';
 
 import {
@@ -282,9 +283,7 @@ class PostServiceImpl implements ContentService {
         const page = queryResult.results[0] as any;
 
         // 获取页面内容（blocks）
-        // 注意：这里需要调用 content-source 模块来获取 blocks
-        // 目前简化处理，假设 blocks 已经在 queryResult 中
-        const blocks = (page as any).blocks || [];
+        const blocks = await retrieveBlockChildrenAll(client, page.id);
 
         const postDetail = transformToPostDetail(page, blocks);
 
@@ -352,6 +351,7 @@ class PostServiceImpl implements ContentService {
 
   /**
    * 搜索文章（简单的标题/摘要搜索）
+   * 搜索所有已发布文章，不受分页限制
    */
   async searchPosts(query: string): Promise<PostSummary[]> {
     if (!query || query.trim() === '') {
@@ -359,14 +359,23 @@ class PostServiceImpl implements ContentService {
     }
 
     const normalizedQuery = query.toLowerCase().trim();
+    const { client, databaseId } = getNotionClient();
 
-    // 获取所有已发布文章
-    const allPostsResult = await this.getPublishedPosts({
-      pageSize: 100,
+    // 使用 queryDataSourceAll 获取所有已发布文章
+    const allPages = await queryDataSourceAll(client, {
+      dataSourceId: databaseId,
+      filter: {
+        property: 'Status',
+        status: {
+          equals: 'Published',
+        },
+      } as any,
     });
 
+    const allPosts = transformToPostSummaries(allPages as any[]);
+
     // 简单的本地搜索
-    const matchingPosts = allPostsResult.data.filter((post) => {
+    const matchingPosts = allPosts.filter((post) => {
       return (
         post.title.toLowerCase().includes(normalizedQuery) ||
         post.excerpt.toLowerCase().includes(normalizedQuery) ||
@@ -379,6 +388,7 @@ class PostServiceImpl implements ContentService {
 
   /**
    * 获取相关文章（基于标签相似度）
+   * 从所有已发布文章中筛选有共同标签的相关文章
    */
   async getRelatedPosts(slug: string, limit: number = 3): Promise<PostSummary[]> {
     // 获取当前文章
@@ -388,15 +398,23 @@ class PostServiceImpl implements ContentService {
       return [];
     }
 
-    // 获取所有已发布文章
-    const allPostsResult = await this.getPublishedPosts({
-      pageSize: 50,
+    const { client, databaseId } = getNotionClient();
+
+    // 获取所有已发布文章（不受分页限制）
+    const allPages = await queryDataSourceAll(client, {
+      dataSourceId: databaseId,
+      filter: {
+        property: 'Status',
+        status: {
+          equals: 'Published',
+        },
+      } as any,
     });
 
+    const allPosts = transformToPostSummaries(allPages as any[]);
+
     // 过滤掉当前文章
-    const otherPosts = allPostsResult.data.filter(
-      (post) => post.slug !== slug
-    );
+    const otherPosts = allPosts.filter((post) => post.slug !== slug);
 
     // 根据标签相似度排序
     const scoredPosts = otherPosts.map((post) => {
@@ -411,8 +429,9 @@ class PostServiceImpl implements ContentService {
       };
     });
 
-    // 按分数降序排序，取前 limit 个
+    // 过滤掉无共同标签的文章（score === 0），按分数降序排序
     const relatedPosts = scoredPosts
+      .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map((item) => item.post);

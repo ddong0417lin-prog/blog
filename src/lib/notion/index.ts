@@ -92,6 +92,19 @@ export {
   type CacheOptions,
 } from './cache';
 
+// ============================================================================
+// Blocks 查询
+// ============================================================================
+
+export {
+  retrieveBlockChildren,
+  retrieveBlockChildrenAll,
+  retrieveBlockChildrenIterator,
+  type RetrieveBlockChildrenOptions,
+  type BlocksResult,
+  type BlocksQueryConfig,
+} from './blocks';
+
 export type {
   NotionSource,
   NotionPageData,
