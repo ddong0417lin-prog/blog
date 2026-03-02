@@ -87,13 +87,32 @@ export class NotionAPIError extends Error {
     // 429 Rate Limit
     if (response.status === 429) {
       const retryAfter = response.headers.get('retry-after');
+      // 支持两种格式: 秒数(数字字符串) 或 HTTP-date (如 Wed, 21 Oct 2025 07:28:00 GMT)
+      let retryAfterSeconds: number | undefined;
+      if (retryAfter) {
+        // 尝试解析为整数秒数
+        const seconds = parseInt(retryAfter, 10);
+        if (!isNaN(seconds) && String(seconds) === retryAfter.trim()) {
+          retryAfterSeconds = seconds;
+        } else {
+          // 尝试解析为 HTTP-date
+          const dateMs = Date.parse(retryAfter);
+          if (!isNaN(dateMs)) {
+            retryAfterSeconds = Math.ceil((dateMs - Date.now()) / 1000);
+            // 如果计算出的时间是负数或太远，使用默认值
+            if (retryAfterSeconds < 0 || retryAfterSeconds > 3600) {
+              retryAfterSeconds = undefined;
+            }
+          }
+        }
+      }
       return new NotionAPIError(
         NotionErrorCode.RATE_LIMITED,
         'Notion API rate limit exceeded',
         {
           status: response.status,
           headers,
-          retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+          retryAfter: retryAfterSeconds,
         }
       );
     }

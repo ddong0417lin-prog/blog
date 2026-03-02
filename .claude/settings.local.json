@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "mcp__codex-reviewer__codex",
+      "Bash(npx shadcn@latest init)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias \"@/*\" --no-git --no-turbopack --use-npm)",
+      "Bash(npm init -y)",
+      "Bash(npm install next@15 react@19 react-dom@19 typescript @types/react @types/react-dom @types/node)",
+      "Bash(npm install tailwindcss @tailwindcss/postcss postcss)",
+      "Bash(npm install clsx tailwind-merge class-variance-authority)",
+      "Bash(npx shadcn@latest add button card input dialog dropdown-menu skeleton badge sheet label separator avatar command -y)",
+      "Bash(npm install next-themes lucide-react)",
+      "Bash(npm install tailwindcss-animate)",
+      "Bash(npm run build)",
+      "Bash(npm uninstall tailwindcss @tailwindcss/postcss)",
+      "Bash(npm install tailwindcss@3 postcss autoprefixer)",
+      "Bash(npm install @notionhq/client)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(git add -A)"
+    ]
+  }
+}

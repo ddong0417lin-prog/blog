@@ -77,8 +77,37 @@ export interface NotionClientInstance {
 }
 
 // ============================================================================
-// 环境变量验证
+// 配置验证
 // ============================================================================
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 验证 token 格式
+ * @throws {ConfigurationError} 当 token 格式无效时
+ */
+function validateToken(token: string): void {
+  if (!token.startsWith('secret_') && !token.startsWith('integration_')) {
+    throw new ConfigurationError(
+      `Invalid NOTION_TOKEN format. Token should start with 'secret_' or 'integration_'. ` +
+        `Get your token from https://www.notion.so/my-integrations`
+    );
+  }
+}
+
+/**
+ * 验证 databaseId 格式
+ * @throws {ConfigurationError} 当 databaseId 格式无效时
+ */
+function validateDatabaseId(databaseId: string): void {
+  if (!UUID_PATTERN.test(databaseId)) {
+    throw new ConfigurationError(
+      `Invalid NOTION_DATABASE_ID format. Expected UUID format like: ` +
+        `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+    );
+  }
+}
 
 /**
  * 验证必需的环境变量
@@ -107,23 +136,9 @@ export function validateEnvironment(): {
     );
   }
 
-  // 验证 token 格式 (secret_ 或 integration_ 前缀)
-  if (!token!.startsWith('secret_') && !token!.startsWith('integration_')) {
-    throw new ConfigurationError(
-      `Invalid NOTION_TOKEN format. Token should start with 'secret_' or 'integration_'. ` +
-        `Get your token from https://www.notion.so/my-integrations`
-    );
-  }
-
-  // 验证 databaseId 格式 (UUID)
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidPattern.test(databaseId!)) {
-    throw new ConfigurationError(
-      `Invalid NOTION_DATABASE_ID format. Expected UUID format like: ` +
-        `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-    );
-  }
+  // 验证 token 和 databaseId 格式
+  validateToken(token!);
+  validateDatabaseId(databaseId!);
 
   return { token: token!, databaseId: databaseId! };
 }
@@ -168,10 +183,18 @@ export function createNotionClient(
     throw new ConfigurationError('Notion database ID is required');
   }
 
-  // 合并配置
+  // 验证 token 和 databaseId 格式（环境变量已通过 validateEnvironment 校验）
+  if (config?.token) {
+    validateToken(token);
+  }
+  if (config?.databaseId) {
+    validateDatabaseId(databaseId);
+  }
+
+  // 合并配置（强制使用固定 API 版本）
   const finalConfig = {
-    notionVersion: config?.notionVersion ?? NOTION_API_VERSION,
-    timeoutMs: config?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    notionVersion: NOTION_API_VERSION,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
     userAgent: config?.userAgent ?? USER_AGENT,
   };
 
