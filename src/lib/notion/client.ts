@@ -4,7 +4,7 @@
  * ============================================================================
  *
  * 负责 Notion SDK 客户端的创建和配置
- * - 固定 API 版本: 2022-06-28
+ * - 固定 API 版本: 2025-09-03
  * - 超时配置: 10 秒
  * - User-Agent: 自定义标识
  *
@@ -26,7 +26,7 @@ import {
  * Notion API 版本
  * 固定版本避免破坏性变更
  */
-export const NOTION_API_VERSION = '2022-06-28';
+export const NOTION_API_VERSION = '2025-09-03';
 
 /**
  * 默认超时时间（毫秒）
@@ -82,15 +82,19 @@ export interface NotionClientInstance {
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN_NO_DASH = /^[0-9a-f]{32}$/i;
 
 /**
  * 验证 token 格式
  * @throws {ConfigurationError} 当 token 格式无效时
  */
 function validateToken(token: string): void {
-  if (!token.startsWith('secret_') && !token.startsWith('integration_')) {
+  // 支持多种 Token 格式：
+  // - secret_xxx: 传统的 Integration Token
+  // - ntn_xxx: Notion 新的内部集成 Token 格式
+  if (!token.startsWith('secret_') && !token.startsWith('ntn_') && !token.startsWith('integration_')) {
     throw new ConfigurationError(
-      `Invalid NOTION_TOKEN format. Token should start with 'secret_' or 'integration_'. ` +
+      `Invalid NOTION_TOKEN format. Token should start with 'secret_', 'ntn_', or 'integration_'. ` +
         `Get your token from https://www.notion.so/my-integrations`
     );
   }
@@ -101,10 +105,13 @@ function validateToken(token: string): void {
  * @throws {ConfigurationError} 当 databaseId 格式无效时
  */
 function validateDatabaseId(databaseId: string): void {
-  if (!UUID_PATTERN.test(databaseId)) {
+  // 支持两种格式：
+  // - 带连字符：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // - 无连字符：32 位十六进制
+  if (!UUID_PATTERN.test(databaseId) && !UUID_PATTERN_NO_DASH.test(databaseId)) {
     throw new ConfigurationError(
       `Invalid NOTION_DATABASE_ID format. Expected UUID format like: ` +
-        `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+        `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or 32 hex characters`
     );
   }
 }
@@ -148,6 +155,18 @@ export function validateEnvironment(): {
 // ============================================================================
 
 /**
+ * 将 32 位无连字符的 databaseId 转换为 UUID 格式
+ * @param id databaseId
+ */
+function toUuidFormat(id: string): string {
+  if (UUID_PATTERN.test(id)) {
+    return id; // 已经是 UUID 格式
+  }
+  // 转换为 UUID 格式：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+}
+
+/**
  * 创建 Notion 客户端实例
  *
  * @param config - 客户端配置（可选，默认从环境变量读取）
@@ -173,7 +192,8 @@ export function createNotionClient(
   const env = config?.token ? null : validateEnvironment();
 
   const token = config?.token ?? env?.token;
-  const databaseId = config?.databaseId ?? env?.databaseId;
+  // 转换为 UUID 格式（Notion API 需要）
+  const databaseId = toUuidFormat(config?.databaseId ?? env?.databaseId!);
 
   if (!token) {
     throw new ConfigurationError('Notion token is required');

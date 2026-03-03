@@ -177,6 +177,12 @@ function extractStatus(page: PageObjectResponse, propertyName: string): PostStat
     return PostStatus.PUBLISHED;
   }
 
+  // 兼容旧 schema：Published 为 checkbox
+  const publishedCheckbox = extractPropertyValue(page, 'Published');
+  if (publishedCheckbox === true) {
+    return PostStatus.PUBLISHED;
+  }
+
   return PostStatus.DRAFT;
 }
 

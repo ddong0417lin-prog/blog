@@ -18,6 +18,7 @@ import type {
   ListOptions,
   PaginatedResult,
 } from '@/contracts/types';
+import type { Client } from '@notionhq/client';
 
 import { PostStatus } from '@/contracts/types';
 
@@ -60,6 +61,46 @@ const MAX_PUBLISHED_POSTS = 2000;
  * PostService 实现
  */
 class PostServiceImpl implements ContentService {
+  private dataSourceIdPromise: Promise<string> | null = null;
+
+  /**
+   * 兼容 Notion 新版 API：database 与 data source 分离。
+   * 允许环境变量填 database_id，并在运行时解析出 data_source_id。
+   */
+  private async getDataSourceId(client: Client, databaseId: string): Promise<string> {
+    if (this.dataSourceIdPromise) {
+      return this.dataSourceIdPromise;
+    }
+
+    this.dataSourceIdPromise = (async () => {
+      // 优先使用显式 data source id 配置
+      const explicitDataSourceId = process.env.NOTION_DATA_SOURCE_ID;
+      if (explicitDataSourceId) {
+        return explicitDataSourceId;
+      }
+
+      // 默认把 NOTION_DATABASE_ID 视作 data_source_id（兼容新版 Notion URL）。
+      // 如需从 database_id 自动解析 data_source_id，请设置 NOTION_ID_KIND=database。
+      if (process.env.NOTION_ID_KIND !== 'database') {
+        return databaseId;
+      }
+
+      try {
+        const database = await client.databases.retrieve({
+          database_id: databaseId,
+        } as any);
+
+        const dataSourceId = (database as any)?.data_sources?.[0]?.id;
+        return dataSourceId || databaseId;
+      } catch {
+        // 若传入的本身就是 data_source_id，retrieve database 可能失败；回退原值继续查询。
+        return databaseId;
+      }
+    })();
+
+    return this.dataSourceIdPromise;
+  }
+
   /**
    * 获取所有已发布文章（带缓存）
    * 公开方法，用于 sitemap 和其他需要全量文章的场景
@@ -68,6 +109,7 @@ class PostServiceImpl implements ContentService {
    */
   async getAllPublishedPosts(): Promise<PostSummary[]> {
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
     const cacheKey = 'posts:all-published';
 
     const posts = await withCache(
@@ -75,18 +117,12 @@ class PostServiceImpl implements ContentService {
         const allPages = await queryDataSourceAll(
           client,
           {
-            dataSourceId: databaseId,
-            filter: {
-              property: 'Status',
-              status: {
-                equals: 'Published',
-              },
-            } as any,
+            dataSourceId,
           },
           { maxItems: MAX_PUBLISHED_POSTS }
         );
 
-        return transformToPostSummaries(allPages as any[]);
+        return filterPublishedPosts(transformToPostSummaries(allPages as any[]));
       },
       cacheKey,
       { ttl: CACHE_TTL.ALL_PUBLISHED }
@@ -113,13 +149,14 @@ class PostServiceImpl implements ContentService {
     const pageSize = options?.pageSize || 10;
     const startCursor = options?.startCursor;
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
 
     const cacheKey = `posts:all:${startCursor || 'first'}:${pageSize}`;
 
     const result = await withCache(
       async () => {
         const queryResult = await queryDataSource(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
           pageSize,
           startCursor,
         });
@@ -151,21 +188,16 @@ class PostServiceImpl implements ContentService {
     const pageSize = options?.pageSize || 10;
     const startCursor = options?.startCursor;
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
 
     const cacheKey = `posts:published:${startCursor || 'first'}:${pageSize}`;
 
     const result = await withCache(
       async () => {
         const queryResult = await queryDataSource(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
           pageSize,
           startCursor,
-          filter: {
-            property: 'Status',
-            status: {
-              equals: 'Published',
-            },
-          } as any,
         });
 
         const posts = transformToPostSummaries(queryResult.results as any[]);
@@ -201,34 +233,25 @@ class PostServiceImpl implements ContentService {
     const pageSize = options?.pageSize || 10;
     const startCursor = options?.startCursor;
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
 
     const cacheKey = `posts:tag:${tag}:${startCursor || 'first'}:${pageSize}`;
 
     const result = await withCache(
       async () => {
         const queryResult = await queryDataSource(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
           pageSize,
           startCursor,
           filter: {
-            and: [
-              {
-                property: 'Status',
-                status: {
-                  equals: 'Published',
-                },
-              },
-              {
-                property: 'Tags',
-                multi_select: {
-                  contains: tag,
-                },
-              },
-            ],
+            property: 'Tags',
+            multi_select: {
+              contains: tag,
+            },
           } as any,
         });
 
-        const posts = transformToPostSummaries(queryResult.results as any[]);
+        const posts = filterPublishedPosts(transformToPostSummaries(queryResult.results as any[]));
 
         return {
           data: posts,
@@ -258,34 +281,25 @@ class PostServiceImpl implements ContentService {
     const pageSize = options?.pageSize || 10;
     const startCursor = options?.startCursor;
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
 
     const cacheKey = `posts:category:${category}:${startCursor || 'first'}:${pageSize}`;
 
     const result = await withCache(
       async () => {
         const queryResult = await queryDataSource(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
           pageSize,
           startCursor,
           filter: {
-            and: [
-              {
-                property: 'Status',
-                status: {
-                  equals: 'Published',
-                },
-              },
-              {
-                property: 'Category',
-                select: {
-                  equals: category,
-                },
-              },
-            ],
+            property: 'Category',
+            select: {
+              equals: category,
+            },
           } as any,
         });
 
-        const posts = transformToPostSummaries(queryResult.results as any[]);
+        const posts = filterPublishedPosts(transformToPostSummaries(queryResult.results as any[]));
 
         return {
           data: posts,
@@ -314,12 +328,13 @@ class PostServiceImpl implements ContentService {
     }
 
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
     const cacheKey = `posts:slug:${slug}`;
 
     const post = await withCache(
       async () => {
         const queryResult = await queryDataSource(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
           pageSize: 1,
           filter: {
             property: 'Slug',
@@ -359,12 +374,13 @@ class PostServiceImpl implements ContentService {
    */
   async getAllTags(): Promise<Tag[]> {
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
     const cacheKey = 'tags:all';
 
     const tags = await withCache(
       async () => {
         const allPostsResult = await queryDataSourceAll(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
         });
 
         const posts = transformToPostSummaries(allPostsResult as any[]);
@@ -383,12 +399,13 @@ class PostServiceImpl implements ContentService {
    */
   async getAllCategories(): Promise<Category[]> {
     const { client, databaseId } = getNotionClient();
+    const dataSourceId = await this.getDataSourceId(client, databaseId);
     const cacheKey = 'categories:all';
 
     const categories = await withCache(
       async () => {
         const allPostsResult = await queryDataSourceAll(client, {
-          dataSourceId: databaseId,
+          dataSourceId,
         });
 
         const posts = transformToPostSummaries(allPostsResult as any[]);
