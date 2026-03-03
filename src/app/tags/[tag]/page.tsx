@@ -1,6 +1,5 @@
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { getPostsByTag, getAllTags } from '@/app/actions/get-posts';
+import type { Metadata } from 'next';
+import { getAllTags, getPostsByTag } from '@/app/actions/get-posts';
 import { PostList } from '@/components/posts/PostList';
 
 interface TagPageProps {
@@ -44,12 +43,9 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
 
   const allTags = await getAllTags();
   const tagEntity = resolveTagByParam(allTags, tag);
+  const tagName = tagEntity?.name || decodeURIComponent(tag);
 
-  if (!tagEntity) {
-    notFound();
-  }
-
-  const { data: posts, hasMore, nextCursor } = await getPostsByTag(tagEntity.name, {
+  const { data: posts, hasMore, nextCursor } = await getPostsByTag(tagName, {
     pageSize: 12,
     startCursor,
     sortBy: 'publishedAt',
@@ -60,7 +56,7 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">
-          <span className="text-muted-foreground">#</span> {tagEntity.name}
+          <span className="text-muted-foreground">#</span> {tagName}
         </h1>
         <p className="text-muted-foreground">共 {posts.length} 篇文章</p>
       </header>
@@ -69,3 +65,4 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
     </div>
   );
 }
+

@@ -1,6 +1,5 @@
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { getPostsByCategory, getAllCategories } from '@/app/actions/get-posts';
+import type { Metadata } from 'next';
+import { getAllCategories, getPostsByCategory } from '@/app/actions/get-posts';
 import { PostList } from '@/components/posts/PostList';
 
 interface CategoryPageProps {
@@ -47,12 +46,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const allCategories = await getAllCategories();
   const categoryEntity = resolveCategoryByParam(allCategories, category);
+  const categoryName = categoryEntity?.name || decodeURIComponent(category);
 
-  if (!categoryEntity) {
-    notFound();
-  }
-
-  const { data: posts, hasMore, nextCursor } = await getPostsByCategory(categoryEntity.name, {
+  const { data: posts, hasMore, nextCursor } = await getPostsByCategory(categoryName, {
     pageSize: 12,
     startCursor,
     sortBy: 'publishedAt',
@@ -62,7 +58,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">{categoryEntity.name}</h1>
+        <h1 className="text-4xl font-bold mb-2">{categoryName}</h1>
         <p className="text-muted-foreground">共 {posts.length} 篇文章</p>
       </header>
 
@@ -70,3 +66,4 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     </div>
   );
 }
+

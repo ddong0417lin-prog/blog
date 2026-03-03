@@ -173,15 +173,19 @@ function extractCategory(
 function extractStatus(page: PageObjectResponse, propertyName: string): PostStatus {
   const status = extractPropertyValue(page, propertyName);
 
-  if (
-    status === 'Published' ||
-    status === 'published' ||
-    status === '已发表' ||
-    status === '已发布' ||
-    status === '发布' ||
-    status === '公开'
-  ) {
-    return PostStatus.PUBLISHED;
+  if (typeof status === 'string') {
+    const normalized = status.trim().toLowerCase();
+    if (
+      normalized === 'published' ||
+      normalized === '已发表' ||
+      normalized === '已发布' ||
+      normalized === '发布' ||
+      normalized === '公开' ||
+      normalized.includes('发布') ||
+      normalized.includes('发表')
+    ) {
+      return PostStatus.PUBLISHED;
+    }
   }
 
   // 兼容旧 schema：Published 为 checkbox
