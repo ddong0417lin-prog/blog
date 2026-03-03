@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getPostBySlug, getRelatedPosts, getPublishedPosts } from '@/app/actions/get-posts';
+import { getPostBySlug, getRelatedPosts } from '@/app/actions/get-posts';
 import { PostHeader } from '@/components/posts/PostHeader';
 import { PostContent } from '@/components/posts/PostContent';
 import { TableOfContents } from '@/components/posts/TableOfContents';
@@ -13,21 +13,12 @@ interface PostPageProps {
   params: Promise<{ slug: string }>;
 }
 
-// 生成静态路径
-export async function generateStaticParams() {
-  const { data: posts } = await getPublishedPosts({
-    pageSize: 100,
-  });
+export const dynamic = 'force-dynamic';
 
-  return posts.map((post) => ({
-    slug: post.slug,
-  }));
-}
-
-// 生成元数据
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const decodedSlug = decodeURIComponent(slug);
+  const post = await getPostBySlug(decodedSlug);
 
   if (!post) {
     return {
@@ -58,17 +49,18 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
 export default async function PostPage({ params }: PostPageProps) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const decodedSlug = decodeURIComponent(slug);
+  const post = await getPostBySlug(decodedSlug);
 
   if (!post) {
     notFound();
   }
 
-  const relatedPosts = await getRelatedPosts(slug, 3);
+  const relatedPosts = await getRelatedPosts(decodedSlug, 3);
 
   return (
     <article className="container mx-auto px-4 py-8">
-      {/* JSON-LD 结构化数据 */}
+      {/* JSON-LD 缁撴瀯鍖栨暟鎹?*/}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -89,26 +81,26 @@ export default async function PostPage({ params }: PostPageProps) {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* 主内容区 */}
+        {/* 涓诲唴瀹瑰尯 */}
         <div className="lg:col-span-8 xl:col-span-9">
           <PostHeader post={post} />
           <PostContent content={post.content} />
 
-          {/* 点赞和分享 */}
+          {/* 鐐硅禐鍜屽垎浜?*/}
           <div className="mt-8 py-4 border-t border-b">
             <LikeButton slug={post.slug} />
           </div>
 
-          {/* 评论 */}
+          {/* 璇勮 */}
           <GiscusComments slug={post.slug} />
 
-          {/* 相关文章 */}
+          {/* 鐩稿叧鏂囩珷 */}
           {relatedPosts.length > 0 && (
             <RelatedPosts posts={relatedPosts} />
           )}
         </div>
 
-        {/* 侧边目录 */}
+        {/* 渚ц竟鐩綍 */}
         {post.toc.length > 0 && (
           <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
             <div className="sticky top-24">
@@ -120,3 +112,4 @@ export default async function PostPage({ params }: PostPageProps) {
     </article>
   );
 }
+

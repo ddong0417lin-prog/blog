@@ -27,7 +27,7 @@ export function PostCard({ post }: PostCardProps) {
     : '未发布';
 
   return (
-    <Link href={`/posts/${post.slug}`}>
+    <Link href={`/posts/${encodeURIComponent(post.id)}`}>
       <Card className="h-full overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
         {/* 封面图片 */}
         {post.coverImage && (

@@ -100,30 +100,16 @@ export const getPostsByCategory = unstable_cache(
 /**
  * 根据 slug 获取文章详情
  */
-export const getPostBySlug = unstable_cache(
-  async (slug: string) => {
-    return postService.getPostBySlug(slug);
-  },
-  ['post-by-slug'],
-  {
-    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
-    tags: ['posts'],
-  }
-);
+export async function getPostBySlug(slug: string) {
+  return postService.getPostBySlug(slug);
+}
 
 /**
  * 获取相关文章
  */
-export const getRelatedPosts = unstable_cache(
-  async (slug: string, limit?: number) => {
-    return postService.getRelatedPosts(slug, limit);
-  },
-  ['related-posts'],
-  {
-    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
-    tags: ['posts'],
-  }
-);
+export async function getRelatedPosts(slug: string, limit?: number) {
+  return postService.getRelatedPosts(slug, limit);
+}
 
 /**
  * 获取所有已发布文章（全量，用于 sitemap）

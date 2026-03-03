@@ -103,10 +103,10 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
   }, [query]);
 
   const handleSelect = useCallback(
-    (slug: string) => {
+    (id: string) => {
       setOpen(false);
       setQuery('');
-      router.push(`/posts/${slug}`);
+      router.push(`/posts/${encodeURIComponent(id)}`);
     },
     [router]
   );
@@ -148,8 +148,8 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
                 {results.map((item) => (
                   <CommandItem
                     key={item.id}
-                    value={item.slug}
-                    onSelect={() => handleSelect(item.slug)}
+                    value={item.id}
+                    onSelect={() => handleSelect(item.id)}
                     className="cursor-pointer"
                   >
                     <div className="flex flex-col gap-1 w-full">

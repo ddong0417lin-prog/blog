@@ -339,8 +339,34 @@ class PostServiceImpl implements ContentService {
           { dataSourceId },
           { maxItems: MAX_PUBLISHED_POSTS }
         );
+        const normalizeSlug = (value: string) =>
+          decodeURIComponent(value).trim().toLowerCase().normalize('NFKC');
+        const normalizeId = (value: string) => value.trim().toLowerCase().replace(/-/g, '');
+
+        const normalizedInput = normalizeSlug(slug);
+        const normalizedInputId = normalizeId(slug);
+
         const summaries = transformToPostSummaries(allPages as any[]);
-        const matchedSummary = summaries.find((item) => item.slug === slug);
+        let matchedSummary = summaries.find(
+          (item) => normalizeSlug(item.slug) === normalizedInput
+        );
+
+        if (!matchedSummary) {
+          matchedSummary = summaries.find(
+            (item) => normalizeId(item.id) === normalizedInputId
+          );
+        }
+
+        if (!matchedSummary) {
+          for (const page of allPages as any[]) {
+            const singleSummary = transformToPostSummary(page);
+            if (normalizeSlug(singleSummary.slug) === normalizedInput) {
+              matchedSummary = singleSummary;
+              break;
+            }
+          }
+        }
+
         if (!matchedSummary) {
           return null;
         }

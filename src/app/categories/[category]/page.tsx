@@ -15,14 +15,25 @@ export async function generateStaticParams() {
   }));
 }
 
+function resolveCategoryByParam(
+  categories: Array<{ name: string; slug: string }>,
+  rawParam: string
+) {
+  const decoded = decodeURIComponent(rawParam);
+  const normalized = decoded.toLowerCase();
+
+  return categories.find((cat) => {
+    const slug = cat.slug.toLowerCase();
+    const name = cat.name.toLowerCase();
+    return slug === normalized || name === normalized;
+  });
+}
+
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category } = await params;
-  const decodedCategory = decodeURIComponent(category);
-
-  // 通过 slug 映射回 name 以获取正确的显示名称
   const allCategories = await getAllCategories();
-  const categoryEntity = allCategories.find((cat) => cat.slug === decodedCategory);
-  const displayName = categoryEntity?.name || decodedCategory;
+  const categoryEntity = resolveCategoryByParam(allCategories, category);
+  const displayName = categoryEntity?.name || decodeURIComponent(category);
 
   return {
     title: `${displayName} - 分类`,
@@ -33,11 +44,9 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { category } = await params;
   const { startCursor } = await searchParams;
-  const decodedSlug = decodeURIComponent(category);
 
-  // 通过 slug 映射回 name
   const allCategories = await getAllCategories();
-  const categoryEntity = allCategories.find((cat) => cat.slug === decodedSlug);
+  const categoryEntity = resolveCategoryByParam(allCategories, category);
 
   if (!categoryEntity) {
     notFound();
@@ -54,9 +63,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">{categoryEntity.name}</h1>
-        <p className="text-muted-foreground">
-          共 {posts.length} 篇文章
-        </p>
+        <p className="text-muted-foreground">共 {posts.length} 篇文章</p>
       </header>
 
       <PostList posts={posts} hasMore={hasMore} nextCursor={nextCursor} />

@@ -15,14 +15,22 @@ export async function generateStaticParams() {
   }));
 }
 
+function resolveTagByParam(tags: Array<{ name: string; slug: string }>, rawParam: string) {
+  const decoded = decodeURIComponent(rawParam);
+  const normalized = decoded.toLowerCase();
+
+  return tags.find((tag) => {
+    const slug = tag.slug.toLowerCase();
+    const name = tag.name.toLowerCase();
+    return slug === normalized || name === normalized;
+  });
+}
+
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
   const { tag } = await params;
-  const decodedTag = decodeURIComponent(tag);
-
-  // 通过 slug 映射回 name 以获取正确的显示名称
   const allTags = await getAllTags();
-  const tagEntity = allTags.find((t) => t.slug === decodedTag);
-  const displayName = tagEntity?.name || decodedTag;
+  const tagEntity = resolveTagByParam(allTags, tag);
+  const displayName = tagEntity?.name || decodeURIComponent(tag);
 
   return {
     title: `${displayName} - 标签`,
@@ -33,11 +41,9 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
 export default async function TagPage({ params, searchParams }: TagPageProps) {
   const { tag } = await params;
   const { startCursor } = await searchParams;
-  const decodedSlug = decodeURIComponent(tag);
 
-  // 通过 slug 映射回 name
   const allTags = await getAllTags();
-  const tagEntity = allTags.find((t) => t.slug === decodedSlug);
+  const tagEntity = resolveTagByParam(allTags, tag);
 
   if (!tagEntity) {
     notFound();
@@ -56,9 +62,7 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
         <h1 className="text-4xl font-bold mb-2">
           <span className="text-muted-foreground">#</span> {tagEntity.name}
         </h1>
-        <p className="text-muted-foreground">
-          共 {posts.length} 篇文章
-        </p>
+        <p className="text-muted-foreground">共 {posts.length} 篇文章</p>
       </header>
 
       <PostList posts={posts} hasMore={hasMore} nextCursor={nextCursor} />
