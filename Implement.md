@@ -4,7 +4,7 @@
 - **项目名称**: Notion Blog
 - **技术栈**: Next.js + Notion + Vercel
 - **创建日期**: 2026-03-02
-- **状态**: 🟢 Phase 2 博客核心功能完成 (100%)
+- **状态**: 🟡 Phase 3 高级功能开发中
 
 ## 模块状态总览
 
@@ -15,8 +15,8 @@
 | **Phase 1: 基础架构** | ✅ 已完成 | 100% | Agent Team |
 | **Phase 2: 博客核心功能** | ✅ 已完成 | 100% | Claude |
 | features/blog | ✅ 已完成 | 100% | Claude |
-| features/search | ⏳ 待开始 | 0% | - |
-| features/interaction | ⏳ 待开始 | 0% | - |
+| features/search | 🔄 进行中 | 0% | teammate-search |
+| features/interaction | 🔄 进行中 | 0% | teammate-interaction |
 
 ---
 
@@ -187,19 +187,111 @@
 
 ---
 
-## Phase 3: 高级功能
+## Phase 3: 高级功能 🔄 进行中
 
-### search 模块
-- [ ] FlexSearch 集成
-- [ ] 搜索索引构建
-- [ ] 搜索 UI 组件
-- [ ] 搜索结果高亮
+**状态**: 🔄 待审阅
+**模式**: 🔄 并行执行
+**开始时间**: 2026-03-03
 
-### interaction 模块
-- [ ] Giscus 评论集成
-- [ ] Upstash Redis 点赞存储
-- [ ] 点赞 API (Edge Function)
-- [ ] 点赞防刷机制
+| 子任务 | PRD 索引 | 状态 | 执行者 | 时间 | 提交 | 备注 |
+|--------|----------|------|--------|------|------|------|
+| 3.1 search 模块 | §Phase 3 | 🔄 待审阅 | teammate-search | 2026-03-03 | - | FlexSearch 集成 |
+| 3.2 interaction 模块 | §Phase 3 | 🔄 待审阅 | teammate-interaction | 2026-03-03 | - | Giscus + Redis 点赞 |
+
+### search 模块 (3.1)
+- [x] FlexSearch 集成
+  - ✅ 安装 flexsearch 依赖
+  - ✅ 创建搜索引擎 (`src/lib/search/engine.ts`)
+  - ✅ 支持标题、摘要、标签、分类搜索
+- [x] 搜索索引构建
+  - ✅ 索引构建器 (`src/lib/search/builder.ts`)
+  - ✅ 从 content-domain 获取文章数据
+- [x] 搜索 UI 组件
+  - ✅ SearchDialog 对话框组件 (`src/components/search/SearchDialog.tsx`)
+  - ✅ SearchButton 按钮组件 (`src/components/search/SearchButton.tsx`)
+  - ✅ 支持 Cmd/Ctrl+K 快捷键
+- [x] Header 集成
+  - ✅ 在 Header 中添加搜索按钮
+- [x] 搜索结果高亮
+  - ✅ 匹配词高亮显示
+
+### interaction 模块 (3.2)
+- [x] Giscus 评论集成
+  - ✅ 创建 GiscusComments 组件 (`src/components/comments/GiscusComments.tsx`)
+  - ✅ 支持主题切换（亮色/暗色）
+  - ✅ 环境变量配置支持
+- [x] Upstash Redis 配置
+  - ✅ 安装 @upstash/redis 依赖
+  - ✅ 创建 Redis 客户端 (`src/lib/redis/client.ts`)
+  - ✅ 点赞相关工具函数
+- [x] 点赞 API (Edge Function)
+  - ✅ GET 接口获取点赞数和点赞状态
+  - ✅ POST 接口添加点赞
+  - ✅ 访客指纹防刷（IP + User-Agent）
+- [x] 点赞组件
+  - ✅ 创建 LikeButton 组件 (`src/components/interaction/LikeButton.tsx`)
+  - ✅ 本地存储点赞状态
+  - ✅ 骨架屏支持
+- [x] 文章详情页集成
+  - ✅ 导入评论和点赞组件
+  - ✅ 添加点赞区域
+  - ✅ 添加评论区
+- [x] 环境变量更新
+  - ✅ 更新 .env.example
+
+---
+
+### 📝 子任务完成记录
+
+#### 子任务 3.1 search 模块完成记录
+**完成时间**: 2026-03-03
+**执行者**: teammate-search + 主 Agent
+
+##### 实现内容
+- FlexSearch 客户端全文搜索引擎
+- 搜索索引构建器（从 content-domain 获取文章）
+- SearchDialog 对话框组件（支持 Cmd/Ctrl+K）
+- SearchButton 按钮组件
+- 搜索结果高亮显示
+- Header 集成搜索按钮
+
+##### 变更文件
+| 文件 | 变更 | 说明 |
+|------|------|------|
+| `src/lib/search/types.ts` | 新增 | 搜索相关类型定义 |
+| `src/lib/search/engine.ts` | 新增 | FlexSearch 搜索引擎 |
+| `src/lib/search/builder.ts` | 新增 | 索引构建器 |
+| `src/lib/search/index.ts` | 新增 | 模块入口 |
+| `src/components/search/SearchDialog.tsx` | 新增 | 搜索对话框 |
+| `src/components/search/SearchButton.tsx` | 新增 | 搜索按钮 |
+| `src/components/search/index.ts` | 新增 | 组件导出 |
+| `src/app/components/Header.tsx` | 修改 | 集成搜索按钮 |
+| `package.json` | 修改 | 添加 flexsearch 依赖 |
+
+---
+
+#### 子任务 3.2 interaction 模块完成记录
+**完成时间**: 2026-03-03
+**执行者**: teammate-interaction
+
+##### 实现内容
+- Giscus 评论集成（支持主题切换）
+- Upstash Redis 点赞存储
+- 点赞 API (GET/POST)
+- 访客指纹防刷机制
+- LikeButton 点赞按钮组件
+- 文章详情页集成评论和点赞
+
+##### 变更文件
+| 文件 | 变更 | 说明 |
+|------|------|------|
+| `src/lib/redis/client.ts` | 新增 | Upstash Redis 客户端 |
+| `src/app/api/like/route.ts` | 新增 | 点赞 API |
+| `src/components/comments/GiscusComments.tsx` | 新增 | Giscus 评论组件 |
+| `src/components/interaction/LikeButton.tsx` | 新增 | 点赞按钮组件 |
+| `src/app/posts/[slug]/page.tsx` | 修改 | 集成评论和点赞 |
+| `.env.example` | 修改 | 添加 Giscus/Redis 环境变量 |
+| `package.json` | 修改 | 添加 @upstash/redis 依赖 |
 
 ---
 
@@ -234,3 +326,5 @@
 | 2026-03-02 | Phase 2 博客核心功能开发完成 | Claude |
 | 2026-03-02 | Phase 2 Codex 审阅问题修复（slug/分页/sitemap） | Claude |
 | 2026-03-03 | Phase 2 最终审阅通过，准备进入 Phase 3 | Claude |
+| 2026-03-03 | Phase 3.2 interaction 模块完成（Giscus评论+Redis点赞） | teammate-interaction |
+| 2026-03-03 | Phase 3.1 search 模块完成（FlexSearch搜索） | teammate-search + Claude |

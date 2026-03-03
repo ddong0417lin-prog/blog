@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, Menu } from 'lucide-react';
+import { Moon, Sun, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { SearchButton } from '@/components/search';
 import { SITE_CONFIG } from '@/lib/constants';
 
 export function Header() {
@@ -53,6 +54,9 @@ export function Header() {
 
         {/* Right Side Actions */}
         <div className="flex flex-1 items-center justify-end space-x-2">
+          {/* Search Button */}
+          <SearchButton />
+
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

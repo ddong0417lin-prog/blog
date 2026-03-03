@@ -5,6 +5,8 @@ import { PostHeader } from '@/components/posts/PostHeader';
 import { PostContent } from '@/components/posts/PostContent';
 import { TableOfContents } from '@/components/posts/TableOfContents';
 import { RelatedPosts } from '@/components/posts/RelatedPosts';
+import { GiscusComments } from '@/components/comments/GiscusComments';
+import { LikeButton } from '@/components/interaction/LikeButton';
 import { SITE_CONFIG } from '@/lib/constants';
 
 interface PostPageProps {
@@ -91,6 +93,14 @@ export default async function PostPage({ params }: PostPageProps) {
         <div className="lg:col-span-8 xl:col-span-9">
           <PostHeader post={post} />
           <PostContent content={post.content} />
+
+          {/* 点赞和分享 */}
+          <div className="mt-8 py-4 border-t border-b">
+            <LikeButton slug={post.slug} />
+          </div>
+
+          {/* 评论 */}
+          <GiscusComments slug={post.slug} />
 
           {/* 相关文章 */}
           {relatedPosts.length > 0 && (
