@@ -244,7 +244,7 @@ class PostServiceImpl implements ContentService {
           pageSize,
           startCursor,
           filter: {
-            property: 'Tags',
+            property: '标签',
             multi_select: {
               contains: tag,
             },
@@ -292,7 +292,7 @@ class PostServiceImpl implements ContentService {
           pageSize,
           startCursor,
           filter: {
-            property: 'Category',
+            property: '类型',
             select: {
               equals: category,
             },
@@ -333,27 +333,28 @@ class PostServiceImpl implements ContentService {
 
     const post = await withCache(
       async () => {
-        const queryResult = await queryDataSource(client, {
-          dataSourceId,
-          pageSize: 1,
-          filter: {
-            property: 'Slug',
-            rich_text: {
-              equals: slug,
-            },
-          } as any,
-        });
-
-        if (queryResult.results.length === 0) {
+        // Compatible with schemas without a dedicated Slug property.
+        const allPages = await queryDataSourceAll(
+          client,
+          { dataSourceId },
+          { maxItems: MAX_PUBLISHED_POSTS }
+        );
+        const summaries = transformToPostSummaries(allPages as any[]);
+        const matchedSummary = summaries.find((item) => item.slug === slug);
+        if (!matchedSummary) {
           return null;
         }
 
-        const page = queryResult.results[0] as any;
+        const page = (allPages as any[]).find((item) => item.id === matchedSummary.id);
+        if (!page) {
+          return null;
+        }
 
         // 获取页面内容（blocks）
         const blocks = await retrieveBlockChildrenAll(client, page.id);
 
         const postDetail = transformToPostDetail(page, blocks);
+        postDetail.slug = matchedSummary.slug;
 
         return postDetail;
       },

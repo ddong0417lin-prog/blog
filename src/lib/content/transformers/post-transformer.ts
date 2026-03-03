@@ -46,13 +46,13 @@ export interface NotionPropertyMapping {
  * 默认属性映射
  */
 export const DEFAULT_PROPERTY_MAPPING: NotionPropertyMapping = {
-  title: 'Title',
+  title: '标题',
   slug: 'Slug',
-  tags: 'Tags',
-  category: 'Category',
-  status: 'Status',
-  publishedAt: 'PublishedAt',
-  excerpt: 'Excerpt',
+  tags: '标签',
+  category: '类型',
+  status: '状态',
+  publishedAt: '日期',
+  excerpt: '摘要',
   cover: 'Cover',
 };
 
@@ -173,7 +173,14 @@ function extractCategory(
 function extractStatus(page: PageObjectResponse, propertyName: string): PostStatus {
   const status = extractPropertyValue(page, propertyName);
 
-  if (status === 'Published' || status === 'published') {
+  if (
+    status === 'Published' ||
+    status === 'published' ||
+    status === '已发表' ||
+    status === '已发布' ||
+    status === '发布' ||
+    status === '公开'
+  ) {
     return PostStatus.PUBLISHED;
   }
 
