@@ -195,8 +195,8 @@
 
 | 子任务 | PRD 索引 | 状态 | 执行者 | 时间 | 提交 | 备注 |
 |--------|----------|------|--------|------|------|------|
-| 3.1 search 模块 | §Phase 3 | 🔄 待审阅 | teammate-search | 2026-03-03 | 2447d7b | FlexSearch 集成 |
-| 3.2 interaction 模块 | §Phase 3 | 🔄 待审阅 | teammate-interaction | 2026-03-03 | 2447d7b | Giscus + Redis 点赞 |
+| 3.1 search 模块 | §Phase 3 | 🔄 待审阅 | teammate-search | 2026-03-03 | ea6043d | FlexSearch 集成 |
+| 3.2 interaction 模块 | §Phase 3 | 🔄 待审阅 | teammate-interaction | 2026-03-03 | ea6043d | Giscus + Redis 点赞 |
 
 ### search 模块 (3.1)
 - [x] FlexSearch 集成
@@ -242,6 +242,8 @@
 ### 审阅修复记录
 - ✅ 修复客户端直接访问 Notion 数据源 (Critical) - 创建搜索 API 路由
 - ✅ 修复点赞逻辑竞态条件 (Important) - 使用 SET NX EX 原子操作
+- ✅ 修复搜索 API 错误处理 (Important) - 数据源失败返回 503，有缓存时降级
+- ✅ 修复 limit 参数边界校验 (Minor) - 限制 1-50 范围
 - ✅ 优化 GiscusComments effect 依赖 (Minor) - 使用 useMemo 稳定配置
 - ✅ 清理未使用的 import (Minor)
 
@@ -335,3 +337,4 @@
 | 2026-03-03 | Phase 3.2 interaction 模块完成（Giscus评论+Redis点赞） | teammate-interaction |
 | 2026-03-03 | Phase 3.1 search 模块完成（FlexSearch搜索） | teammate-search + Claude |
 | 2026-03-03 | Phase 3 Codex 审阅问题修复 | Claude |
+| 2026-03-03 | Phase 3 Codex 审阅问题修复（搜索 API 503 + limit 校验） | Claude |

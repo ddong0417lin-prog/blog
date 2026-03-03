@@ -17,12 +17,18 @@ const CACHE_TTL = 60 * 1000; // 1 分钟
 
 /**
  * 获取搜索文档列表（带缓存）
+ * @returns documents 和是否来自缓存的标志
  */
-async function getSearchDocuments(): Promise<SearchDocument[]> {
+async function getSearchDocuments(): Promise<{
+  documents: SearchDocument[];
+  fromCache: boolean;
+  error: Error | null;
+}> {
   const now = Date.now();
 
+  // 返回有效缓存
   if (cachedDocuments && now - cacheTime < CACHE_TTL) {
-    return cachedDocuments;
+    return { documents: cachedDocuments, fromCache: true, error: null };
   }
 
   try {
@@ -38,10 +44,15 @@ async function getSearchDocuments(): Promise<SearchDocument[]> {
     }));
 
     cacheTime = now;
-    return cachedDocuments;
+    return { documents: cachedDocuments, fromCache: false, error: null };
   } catch (error) {
     console.error('[Search API] Failed to fetch documents:', error);
-    return cachedDocuments || [];
+    // 返回缓存（如果有）或错误
+    return {
+      documents: cachedDocuments || [],
+      fromCache: cachedDocuments !== null,
+      error: error instanceof Error ? error : new Error('Unknown error'),
+    };
   }
 }
 
@@ -162,14 +173,40 @@ function escapeRegExp(string: string): string {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('q') || '';
-  const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const limitParam = searchParams.get('limit') || '10';
+
+  // limit 参数边界校验 (1-50)
+  let limit = parseInt(limitParam, 10);
+  if (!Number.isFinite(limit) || limit < 1) {
+    limit = 10;
+  } else if (limit > 50) {
+    limit = 50;
+  }
 
   if (!query.trim()) {
     return NextResponse.json({ results: [], total: 0 });
   }
 
   try {
-    const documents = await getSearchDocuments();
+    const { documents, fromCache, error } = await getSearchDocuments();
+
+    // 如果数据源失败且没有缓存，返回 503
+    if (error && !fromCache) {
+      return NextResponse.json(
+        {
+          error: 'Service unavailable',
+          message: 'Unable to fetch search data. Please try again later.',
+          results: [],
+        },
+        { status: 503 }
+      );
+    }
+
+    // 如果数据源失败但有缓存，继续使用缓存（降级）
+    if (error && fromCache) {
+      console.warn('[Search API] Using cached data due to upstream error');
+    }
+
     const results = searchInDocuments(documents, query, limit);
 
     // 添加高亮文本
@@ -183,6 +220,7 @@ export async function GET(request: NextRequest) {
       results: formattedResults,
       total: results.length,
       query,
+      cached: fromCache,
     });
   } catch (error) {
     console.error('[Search API] Search failed:', error);
