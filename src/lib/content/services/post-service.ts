@@ -231,32 +231,25 @@ class PostServiceImpl implements ContentService {
     options?: ListOptions
   ): Promise<PaginatedResult<PostSummary>> {
     const pageSize = options?.pageSize || 10;
-    const startCursor = options?.startCursor;
-    const { client, databaseId } = getNotionClient();
-    const dataSourceId = await this.getDataSourceId(client, databaseId);
+    const startIndex = Number(options?.startCursor || 0) || 0;
+    const normalizedTag = tag.trim().toLowerCase();
 
-    const cacheKey = `posts:tag:${tag}:${startCursor || 'first'}:${pageSize}`;
+    const cacheKey = `posts:tag:${normalizedTag}:${startIndex}:${pageSize}`;
 
     const result = await withCache(
       async () => {
-        const queryResult = await queryDataSource(client, {
-          dataSourceId,
-          pageSize,
-          startCursor,
-          filter: {
-            property: '标签',
-            multi_select: {
-              contains: tag,
-            },
-          } as any,
-        });
+        const allPosts = await this.getAllPublishedPostsCached();
+        const filtered = allPosts.filter((post) =>
+          post.tags.some((item) => item.trim().toLowerCase() === normalizedTag)
+        );
 
-        const posts = filterPublishedPosts(transformToPostSummaries(queryResult.results as any[]));
+        const pagePosts = filtered.slice(startIndex, startIndex + pageSize);
+        const hasMore = startIndex + pageSize < filtered.length;
 
         return {
-          data: posts,
-          hasMore: queryResult.hasMore,
-          nextCursor: queryResult.nextCursor || undefined,
+          data: pagePosts,
+          hasMore,
+          nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
         };
       },
       cacheKey,
@@ -279,32 +272,25 @@ class PostServiceImpl implements ContentService {
     options?: ListOptions
   ): Promise<PaginatedResult<PostSummary>> {
     const pageSize = options?.pageSize || 10;
-    const startCursor = options?.startCursor;
-    const { client, databaseId } = getNotionClient();
-    const dataSourceId = await this.getDataSourceId(client, databaseId);
+    const startIndex = Number(options?.startCursor || 0) || 0;
+    const normalizedCategory = category.trim().toLowerCase();
 
-    const cacheKey = `posts:category:${category}:${startCursor || 'first'}:${pageSize}`;
+    const cacheKey = `posts:category:${normalizedCategory}:${startIndex}:${pageSize}`;
 
     const result = await withCache(
       async () => {
-        const queryResult = await queryDataSource(client, {
-          dataSourceId,
-          pageSize,
-          startCursor,
-          filter: {
-            property: '类型',
-            select: {
-              equals: category,
-            },
-          } as any,
-        });
+        const allPosts = await this.getAllPublishedPostsCached();
+        const filtered = allPosts.filter(
+          (post) => post.category.trim().toLowerCase() === normalizedCategory
+        );
 
-        const posts = filterPublishedPosts(transformToPostSummaries(queryResult.results as any[]));
+        const pagePosts = filtered.slice(startIndex, startIndex + pageSize);
+        const hasMore = startIndex + pageSize < filtered.length;
 
         return {
-          data: posts,
-          hasMore: queryResult.hasMore,
-          nextCursor: queryResult.nextCursor || undefined,
+          data: pagePosts,
+          hasMore,
+          nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
         };
       },
       cacheKey,
