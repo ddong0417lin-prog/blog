@@ -23,6 +23,7 @@
 - SEO 优化
 - 点赞功能 (基于 Upstash Redis)
 - 评论系统 (Giscus)
+- 性能监控 (Vercel Analytics + Speed Insights)
 
 ## 快速开始
 

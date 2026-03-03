@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { Header } from "./components/Header";
@@ -8,6 +10,7 @@ import { SITE_CONFIG } from "@/lib/constants";
 
 const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -46,7 +49,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.variable} font-sans`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -58,6 +61,8 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
