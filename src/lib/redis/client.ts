@@ -66,7 +66,7 @@ export async function hasVisitorLiked(
 }
 
 /**
- * 添加点赞
+ * 添加点赞（原子操作，避免竞态条件）
  * 返回是否成功（如果已点赞则返回 false）
  */
 export async function addLike(
@@ -78,24 +78,31 @@ export async function addLike(
   }
 
   try {
-    // 检查是否已点赞
-    const alreadyLiked = await hasVisitorLiked(postSlug, fingerprint);
-    if (alreadyLiked) {
-      const currentCount = await getLikeCount(postSlug);
-      return { success: false, count: currentCount };
-    }
+    const visitorKey = REDIS_KEYS.visitorLike(postSlug, fingerprint);
+    const countKey = REDIS_KEYS.likeCount(postSlug);
 
-    // 记录访客点赞（7天过期）
-    await redis.setex(
-      REDIS_KEYS.visitorLike(postSlug, fingerprint),
-      60 * 60 * 24 * 7, // 7 天过期
-      Date.now().toString()
+    // 使用 SET NX EX 实现原子性点赞
+    // NX: 只在 key 不存在时设置
+    // EX: 设置过期时间（7天）
+    const result = await redis.set(
+      visitorKey,
+      Date.now().toString(),
+      {
+        nx: true, // 只在 key 不存在时设置
+        ex: 60 * 60 * 24 * 7, // 7 天过期
+      }
     );
 
-    // 增加点赞计数
-    const newCount = await redis.incr(REDIS_KEYS.likeCount(postSlug));
+    // 如果设置成功（即之前未点赞）
+    if (result === 'OK') {
+      // 原子性增加计数
+      const newCount = await redis.incr(countKey);
+      return { success: true, count: newCount };
+    }
 
-    return { success: true, count: newCount };
+    // 已经点赞过，返回当前计数
+    const currentCount = await getLikeCount(postSlug);
+    return { success: false, count: currentCount };
   } catch (error) {
     console.error('Failed to add like:', error);
     const currentCount = await getLikeCount(postSlug);

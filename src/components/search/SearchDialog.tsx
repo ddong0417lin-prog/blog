@@ -6,22 +6,27 @@ import { Search, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { searchDocuments } from '@/lib/search';
-import type { SearchItem } from '@/lib/search/types';
+
+interface SearchResult {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  tags: string[];
+  category: string;
+  score: number;
+  highlightedTitle?: string;
+  highlightedExcerpt?: string;
+}
 
 interface SearchDialogProps {
   open?: boolean;
@@ -32,7 +37,7 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
   const router = useRouter();
   const [open, setOpen] = useState(openProp ?? false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchItem[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 同步外部 open 状态
@@ -59,27 +64,42 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 搜索防抖
+  // 搜索防抖 - 通过 API 调用
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
       return;
     }
 
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const items = await searchDocuments(query, 8);
-        setResults(items);
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(query)}&limit=8`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          throw new Error('Search failed');
+        }
+
+        const data = await response.json();
+        setResults(data.results || []);
       } catch (error) {
-        console.error('Search failed:', error);
-        setResults([]);
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Search failed:', error);
+          setResults([]);
+        }
       } finally {
         setLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   const handleSelect = useCallback(
@@ -142,17 +162,14 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
                         </div>
                       )}
                       <div className="flex gap-1 mt-1 flex-wrap">
-                        {item.matchedFields?.includes('tags') &&
-                          item.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs px-1">
-                              {tag}
-                            </Badge>
-                          ))}
-                        {item.matchedFields?.includes('category') && (
-                          <Badge variant="outline" className="text-xs px-1">
-                            {item.category}
+                        {item.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs px-1">
+                            {tag}
                           </Badge>
-                        )}
+                        ))}
+                        <Badge variant="outline" className="text-xs px-1">
+                          {item.category}
+                        </Badge>
                       </div>
                     </div>
                   </CommandItem>
@@ -160,13 +177,11 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
               </CommandGroup>
             )}
             {!query && (
-              <>
-                <CommandGroup heading="快捷键">
-                  <div className="px-2 py-3 text-sm text-muted-foreground">
-                    按 <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">K</kbd> 打开搜索
-                  </div>
-                </CommandGroup>
-              </>
+              <CommandGroup heading="快捷键">
+                <div className="px-2 py-3 text-sm text-muted-foreground">
+                  按 <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">K</kbd> 打开搜索
+                </div>
+              </CommandGroup>
             )}
           </CommandList>
         </Command>

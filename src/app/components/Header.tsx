@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, Menu, Search } from 'lucide-react';
+import { Moon, Sun, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
