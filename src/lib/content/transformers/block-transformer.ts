@@ -11,6 +11,7 @@
 
 import type {
   BlockObjectResponse,
+  RichTextItemResponse,
 } from '@notionhq/client/build/src/api-endpoints';
 
 import {
@@ -54,22 +55,30 @@ export interface TransformBlockOptions {
 /**
  * 提取富文本内容
  */
-function extractRichTextContent(block: BlockObjectResponse): string {
+function extractRichText(block: BlockObjectResponse): RichTextItemResponse[] {
   const blockType = block.type;
 
   if (!(blockType in block)) {
-    return '';
+    return [];
   }
 
   const blockData = (block as Record<string, unknown>)[blockType] as {
-    rich_text?: Array<{ plain_text: string }>;
+    rich_text?: RichTextItemResponse[];
   };
 
   if (!blockData?.rich_text) {
-    return '';
+    return [];
   }
 
-  return blockData.rich_text.map(t => t.plain_text).join('');
+  return blockData.rich_text;
+}
+
+/**
+ * 提取富文本内容（保留 Notion 内联格式和链接）
+ */
+function extractRichTextContent(block: BlockObjectResponse): string {
+  const richText = extractRichText(block);
+  return richTextToHtml(richText);
 }
 
 /**
@@ -136,17 +145,7 @@ function extractToDoChecked(block: BlockObjectResponse): boolean {
  * 提取引用内容
  */
 function extractQuoteContent(block: BlockObjectResponse): string {
-  if (!('quote' in block)) {
-    return '';
-  }
-
-  const quote = block.quote;
-
-  if (!quote.rich_text) {
-    return '';
-  }
-
-  return quote.rich_text.map(t => t.plain_text).join('');
+  return extractRichTextContent(block);
 }
 
 /**

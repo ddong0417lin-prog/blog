@@ -23,29 +23,45 @@ export function PostContent({ content }: PostContentProps) {
 }
 
 function BlockRenderer({ block }: { block: Block }) {
+  const renderHtml = (tag: 'p' | 'h2' | 'h3' | 'h4' | 'li' | 'blockquote', className?: string) => {
+    const Tag = tag;
+    return (
+      <Tag
+        className={className}
+        dangerouslySetInnerHTML={{ __html: block.content }}
+      />
+    );
+  };
+
   switch (block.type) {
     case 'paragraph':
-      return <p>{block.content}</p>;
+      return renderHtml('p');
 
     case 'heading_1':
       return (
-        <h2 id={block.id} className="scroll-mt-20">
-          {block.content}
-        </h2>
+        <h2
+          id={block.id}
+          className="scroll-mt-20"
+          dangerouslySetInnerHTML={{ __html: block.content }}
+        />
       );
 
     case 'heading_2':
       return (
-        <h3 id={block.id} className="scroll-mt-20">
-          {block.content}
-        </h3>
+        <h3
+          id={block.id}
+          className="scroll-mt-20"
+          dangerouslySetInnerHTML={{ __html: block.content }}
+        />
       );
 
     case 'heading_3':
       return (
-        <h4 id={block.id} className="scroll-mt-20">
-          {block.content}
-        </h4>
+        <h4
+          id={block.id}
+          className="scroll-mt-20"
+          dangerouslySetInnerHTML={{ __html: block.content }}
+        />
       );
 
     case 'code':
@@ -58,11 +74,7 @@ function BlockRenderer({ block }: { block: Block }) {
       );
 
     case 'quote':
-      return (
-        <blockquote>
-          {block.content}
-        </blockquote>
-      );
+      return renderHtml('blockquote');
 
     case 'image': {
       const caption = block.props?.caption as string | undefined;
@@ -83,10 +95,10 @@ function BlockRenderer({ block }: { block: Block }) {
     }
 
     case 'bulleted_list_item':
-      return <li>{block.content}</li>;
+      return renderHtml('li');
 
     case 'numbered_list_item':
-      return <li>{block.content}</li>;
+      return renderHtml('li');
 
     case 'divider':
       return <hr className="my-8" />;
@@ -96,7 +108,7 @@ function BlockRenderer({ block }: { block: Block }) {
       return (
         <div className="flex gap-4 p-4 bg-muted rounded-lg my-6">
           {icon && <span className="text-2xl">{icon}</span>}
-          <div>{block.content}</div>
+          <div dangerouslySetInnerHTML={{ __html: block.content }} />
         </div>
       );
     }
