@@ -26,7 +26,18 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
     emitMetadata: process.env.NEXT_PUBLIC_GISCUS_EMIT_METADATA || '0',
     inputPosition: process.env.NEXT_PUBLIC_GISCUS_INPUT_POSITION || 'top',
     lang: process.env.NEXT_PUBLIC_GISCUS_LANG || 'zh-CN',
+    theme: process.env.NEXT_PUBLIC_GISCUS_THEME || '',
   }), []);
+
+  const giscusTheme = useMemo(() => {
+    // Respect explicit env theme first.
+    if (giscusConfig.theme && giscusConfig.theme !== 'preferred_color_scheme') {
+      return giscusConfig.theme;
+    }
+
+    // Prefer higher contrast defaults to avoid dark mode readability issues.
+    return resolvedTheme === 'dark' ? 'dark_high_contrast' : 'light_high_contrast';
+  }, [giscusConfig.theme, resolvedTheme]);
 
   // 检查是否配置了 Giscus
   const isConfigured = giscusConfig.repo && giscusConfig.repoId && giscusConfig.categoryId;
@@ -34,8 +45,20 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
   useEffect(() => {
     if (!isConfigured || !containerRef.current) return;
 
+    const container = containerRef.current;
+    const iframe = container.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+
+    // If giscus is already mounted, update theme only.
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { giscus: { setConfig: { theme: giscusTheme } } },
+        'https://giscus.app'
+      );
+      return;
+    }
+
     // 清空容器
-    containerRef.current.innerHTML = '';
+    container.innerHTML = '';
 
     // 创建 Giscus script
     const script = document.createElement('script');
@@ -49,21 +72,21 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
     script.setAttribute('data-reactions-enabled', giscusConfig.reactionsEnabled);
     script.setAttribute('data-emit-metadata', giscusConfig.emitMetadata);
     script.setAttribute('data-input-position', giscusConfig.inputPosition);
-    script.setAttribute('data-theme', resolvedTheme === 'dark' ? 'github-dark' : 'github-light');
+    script.setAttribute('data-theme', giscusTheme);
     script.setAttribute('data-lang', giscusConfig.lang);
     script.setAttribute('data-term', slug);
     script.crossOrigin = 'anonymous';
     script.async = true;
 
-    containerRef.current.appendChild(script);
+    container.appendChild(script);
 
     // 清理函数
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (container) {
+        container.innerHTML = '';
       }
     };
-  }, [slug, resolvedTheme, isConfigured, giscusConfig]);
+  }, [slug, isConfigured, giscusConfig, giscusTheme]);
 
   // 未配置时显示提示
   if (!isConfigured) {
