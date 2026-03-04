@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cormorant_Garamond, Noto_Sans_SC } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -7,10 +7,18 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { SITE_CONFIG } from "@/lib/constants";
+import { InteractionEffects } from "@/components/effects/InteractionEffects";
 
-const inter = Inter({
+const serif = Cormorant_Garamond({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-display",
+  weight: ["500", "600", "700"],
+});
+
+const sans = Noto_Sans_SC({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -49,13 +57,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans`}>
+      <body className={`${serif.variable} ${sans.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
+          <InteractionEffects />
           <div className="flex min-h-screen flex-col">
             <Header />
             <main className="flex-1">{children}</main>

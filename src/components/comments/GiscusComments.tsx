@@ -1,45 +1,42 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTheme } from 'next-themes';
+import { dispatchFireworkBurst } from '@/components/effects/fx-events';
 
-/**
- * Giscus 评论组件
- * 基于 GitHub Discussions 的评论系统
- */
 interface GiscusCommentsProps {
   slug: string;
 }
 
 export function GiscusComments({ slug }: GiscusCommentsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasAutoCelebratedRef = useRef(false);
+  const lastMessageFireworkAtRef = useRef(0);
   const { resolvedTheme } = useTheme();
 
-  // 使用 useMemo 稳定配置对象
-  const giscusConfig = useMemo(() => ({
-    repo: process.env.NEXT_PUBLIC_GISCUS_REPO || '',
-    repoId: process.env.NEXT_PUBLIC_GISCUS_REPO_ID || '',
-    categoryId: process.env.NEXT_PUBLIC_GISCUS_CATEGORY_ID || '',
-    category: process.env.NEXT_PUBLIC_GISCUS_CATEGORY || 'Announcements',
-    mapping: process.env.NEXT_PUBLIC_GISCUS_MAPPING || 'pathname',
-    reactionsEnabled: process.env.NEXT_PUBLIC_GISCUS_REACTIONS_ENABLED || '1',
-    emitMetadata: process.env.NEXT_PUBLIC_GISCUS_EMIT_METADATA || '0',
-    inputPosition: process.env.NEXT_PUBLIC_GISCUS_INPUT_POSITION || 'top',
-    lang: process.env.NEXT_PUBLIC_GISCUS_LANG || 'zh-CN',
-    theme: process.env.NEXT_PUBLIC_GISCUS_THEME || '',
-  }), []);
+  const giscusConfig = useMemo(
+    () => ({
+      repo: process.env.NEXT_PUBLIC_GISCUS_REPO || '',
+      repoId: process.env.NEXT_PUBLIC_GISCUS_REPO_ID || '',
+      categoryId: process.env.NEXT_PUBLIC_GISCUS_CATEGORY_ID || '',
+      category: process.env.NEXT_PUBLIC_GISCUS_CATEGORY || 'Announcements',
+      mapping: process.env.NEXT_PUBLIC_GISCUS_MAPPING || 'pathname',
+      reactionsEnabled: process.env.NEXT_PUBLIC_GISCUS_REACTIONS_ENABLED || '1',
+      emitMetadata: process.env.NEXT_PUBLIC_GISCUS_EMIT_METADATA || '0',
+      inputPosition: process.env.NEXT_PUBLIC_GISCUS_INPUT_POSITION || 'top',
+      lang: process.env.NEXT_PUBLIC_GISCUS_LANG || 'zh-CN',
+      theme: process.env.NEXT_PUBLIC_GISCUS_THEME || '',
+    }),
+    []
+  );
 
   const giscusTheme = useMemo(() => {
-    // Respect explicit env theme first.
     if (giscusConfig.theme && giscusConfig.theme !== 'preferred_color_scheme') {
       return giscusConfig.theme;
     }
-
-    // Prefer higher contrast defaults to avoid dark mode readability issues.
     return resolvedTheme === 'dark' ? 'dark_high_contrast' : 'light_high_contrast';
   }, [giscusConfig.theme, resolvedTheme]);
 
-  // 检查是否配置了 Giscus
   const isConfigured = giscusConfig.repo && giscusConfig.repoId && giscusConfig.categoryId;
 
   useEffect(() => {
@@ -48,7 +45,6 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
     const container = containerRef.current;
     const iframe = container.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
 
-    // If giscus is already mounted, update theme only.
     if (iframe?.contentWindow) {
       iframe.contentWindow.postMessage(
         { giscus: { setConfig: { theme: giscusTheme } } },
@@ -57,10 +53,8 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
       return;
     }
 
-    // 清空容器
     container.innerHTML = '';
 
-    // 创建 Giscus script
     const script = document.createElement('script');
     script.src = 'https://giscus.app/client.js';
     script.setAttribute('data-repo', giscusConfig.repo);
@@ -80,32 +74,69 @@ export function GiscusComments({ slug }: GiscusCommentsProps) {
 
     container.appendChild(script);
 
-    // 清理函数
     return () => {
-      if (container) {
-        container.innerHTML = '';
-      }
+      container.innerHTML = '';
     };
   }, [slug, isConfigured, giscusConfig, giscusTheme]);
 
-  // 未配置时显示提示
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || hasAutoCelebratedRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting || hasAutoCelebratedRef.current) return;
+        const rect = container.getBoundingClientRect();
+        dispatchFireworkBurst({
+          x: rect.left + rect.width / 2,
+          y: rect.top + Math.min(80, rect.height / 3),
+        });
+        hasAutoCelebratedRef.current = true;
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://giscus.app') return;
+
+      // Throttle to avoid fireworks spam during initial widget boot.
+      const now = Date.now();
+      if (now - lastMessageFireworkAtRef.current < 2200) return;
+      lastMessageFireworkAtRef.current = now;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      dispatchFireworkBurst({
+        x: rect.left + rect.width * 0.72,
+        y: rect.top + Math.min(120, rect.height * 0.28),
+      });
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
   if (!isConfigured) {
     return (
-      <div className="mt-8 p-4 border border-border rounded-lg bg-muted/50">
-        <p className="text-sm text-muted-foreground text-center">
-          评论功能未配置。请在 .env.local 中设置 Giscus 相关环境变量。
+      <div className="mt-8 rounded-lg border border-border bg-muted/50 p-4">
+        <p className="text-center text-sm text-muted-foreground">
+          评论功能未配置。请在环境变量中设置 Giscus 相关参数。
         </p>
       </div>
     );
   }
 
   return (
-    <div className="mt-8">
-      <h2 className="text-xl font-semibold mb-4">评论</h2>
-      <div
-        ref={containerRef}
-        className="giscus-container"
-      />
+    <div className="mt-2">
+      <h2 className="mb-4 text-2xl font-semibold">评论</h2>
+      <div ref={containerRef} className="giscus-container rounded-xl" />
     </div>
   );
 }
+

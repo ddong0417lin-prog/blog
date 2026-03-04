@@ -1,11 +1,3 @@
-/**
- * ============================================================================
- * PostList 文章列表组件
- * ============================================================================
- *
- * 网格布局的文章列表，支持加载更多
- */
-
 import { PostCard } from './PostCard';
 import type { PostSummary } from '@/contracts/types';
 
@@ -18,27 +10,26 @@ interface PostListProps {
 export function PostList({ posts, hasMore, nextCursor }: PostListProps) {
   if (posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-lg text-muted-foreground">暂无文章</p>
+      <div className="rounded-2xl border border-dashed border-border/90 bg-muted/30 px-6 py-14 text-center">
+        <p className="text-base text-muted-foreground">暂时还没有文章，写下第一篇吧。</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      {/* 文章网格 */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {posts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
       </div>
 
-      {/* 加载更多 */}
       {hasMore && nextCursor && (
         <div className="flex justify-center">
           <a
             href={`?startCursor=${nextCursor}`}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-accent"
+            data-interactive="true"
           >
             加载更多
           </a>
@@ -47,3 +38,4 @@ export function PostList({ posts, hasMore, nextCursor }: PostListProps) {
     </div>
   );
 }
+

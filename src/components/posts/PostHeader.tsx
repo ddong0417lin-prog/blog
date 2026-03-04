@@ -16,29 +16,23 @@ export function PostHeader({ post }: PostHeaderProps) {
     : '未发布';
 
   return (
-    <header className="mb-8">
-      {/* 分类 */}
+    <header className="paper-card mb-8 p-6 md:p-8">
       <Link
         href={`/categories/${encodeURIComponent(post.category)}`}
-        className="inline-block mb-4"
+        className="mb-4 inline-block"
+        data-interactive="true"
       >
-        <Badge variant="secondary" className="hover:bg-secondary/80">
+        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs tracking-wide">
           {post.category}
         </Badge>
       </Link>
 
-      {/* 标题 */}
-      <h1 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
-        {post.title}
-      </h1>
-
-      {/* 摘要 */}
-      <p className="text-lg text-muted-foreground mb-6">
+      <h1 className="mb-4 text-4xl font-semibold leading-tight md:text-5xl">{post.title}</h1>
+      <p className="mb-6 max-w-3xl text-base leading-7 text-muted-foreground md:text-lg">
         {post.excerpt}
       </p>
 
-      {/* 元信息 */}
-      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
         <time dateTime={post.publishedAt || undefined}>{formattedDate}</time>
         <span>·</span>
         <span>{post.readingTime} 分钟阅读</span>
@@ -50,30 +44,22 @@ export function PostHeader({ post }: PostHeaderProps) {
         )}
       </div>
 
-      {/* 标签 */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="mb-6 flex flex-wrap gap-2">
         {post.tags.map((tag) => (
-          <Link
-            key={tag}
-            href={`/tags/${encodeURIComponent(tag)}`}
-          >
-            <Badge variant="outline" className="hover:bg-accent">
+          <Link key={tag} href={`/tags/${encodeURIComponent(tag)}`} data-interactive="true">
+            <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs hover:bg-accent">
               {tag}
             </Badge>
           </Link>
         ))}
       </div>
 
-      {/* 封面图 */}
       {post.coverImage && (
-        <div className="relative aspect-video w-full rounded-lg overflow-hidden mb-8">
-          <img
-            src={post.coverImage}
-            alt={post.title}
-            className="w-full h-full object-cover"
-          />
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl">
+          <img src={post.coverImage} alt={post.title} className="h-full w-full object-cover" />
         </div>
       )}
     </header>
   );
 }
+

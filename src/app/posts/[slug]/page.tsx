@@ -21,9 +21,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
   const post = await getPostBySlug(decodedSlug);
 
   if (!post) {
-    return {
-      title: '文章未找到',
-    };
+    return { title: '文章未找到' };
   }
 
   return {
@@ -59,8 +57,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const relatedPosts = await getRelatedPosts(decodedSlug, 3);
 
   return (
-    <article className="container mx-auto px-4 py-8">
-      {/* JSON-LD 缁撴瀯鍖栨暟鎹?*/}
+    <article className="page-container py-10 md:py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -80,30 +77,32 @@ export default async function PostPage({ params }: PostPageProps) {
         }}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* 涓诲唴瀹瑰尯 */}
-        <div className="lg:col-span-8 xl:col-span-9">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className="space-y-8 lg:col-span-8 xl:col-span-9">
           <PostHeader post={post} />
-          <PostContent content={post.content} />
 
-          {/* 鐐硅禐鍜屽垎浜?*/}
-          <div className="mt-8 py-4 border-t border-b">
+          <section className="paper-card p-6 md:p-8">
+            <PostContent content={post.content} />
+          </section>
+
+          <section className="paper-card px-6 py-4">
             <LikeButton slug={post.slug} />
-          </div>
+          </section>
 
-          {/* 璇勮 */}
-          <GiscusComments slug={post.slug} />
+          <section className="paper-card p-6 md:p-8">
+            <GiscusComments slug={post.slug} />
+          </section>
 
-          {/* 鐩稿叧鏂囩珷 */}
           {relatedPosts.length > 0 && (
-            <RelatedPosts posts={relatedPosts} />
+            <section className="paper-card p-6 md:p-8">
+              <RelatedPosts posts={relatedPosts} />
+            </section>
           )}
         </div>
 
-        {/* 渚ц竟鐩綍 */}
         {post.toc.length > 0 && (
-          <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
-            <div className="sticky top-24">
+          <aside className="hidden lg:col-span-4 lg:block xl:col-span-3">
+            <div className="sticky top-28 paper-card p-5">
               <TableOfContents toc={post.toc} />
             </div>
           </aside>
