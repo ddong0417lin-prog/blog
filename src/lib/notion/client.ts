@@ -34,6 +34,20 @@ export const NOTION_API_VERSION = '2025-09-03';
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
 /**
+ * 允许通过环境变量覆盖 Notion 请求超时（毫秒）。
+ * 仅接受 1000~60000 区间，避免误配置导致极端值。
+ */
+function resolveTimeoutMs(): number {
+  const raw = process.env.NOTION_TIMEOUT_MS;
+  if (!raw) return DEFAULT_TIMEOUT_MS;
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
+  if (parsed < 1_000 || parsed > 60_000) return DEFAULT_TIMEOUT_MS;
+  return parsed;
+}
+
+/**
  * User-Agent 标识
  */
 export const USER_AGENT = `notion-blog/1.0.0 (Next.js; Node.js/${process.version})`;
@@ -214,7 +228,7 @@ export function createNotionClient(
   // 合并配置（强制使用固定 API 版本）
   const finalConfig = {
     notionVersion: NOTION_API_VERSION,
-    timeoutMs: DEFAULT_TIMEOUT_MS,
+    timeoutMs: config?.timeoutMs ?? resolveTimeoutMs(),
     userAgent: config?.userAgent ?? USER_AGENT,
   };
 
