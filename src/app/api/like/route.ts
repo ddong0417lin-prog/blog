@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  redis,
   isRedisEnabled,
   getLikeCount,
   addLike,
+  hasVisitorLiked,
 } from '@/lib/redis/client';
 
 /**
@@ -53,11 +53,8 @@ export async function GET(request: NextRequest) {
   try {
     const count = await getLikeCount(slug);
     const fingerprint = generateVisitorFingerprint(request);
-
-    // 检查当前访客是否已点赞
-    const hasLiked = redis
-      ? await redis.exists(`blog:visitor:${slug}:${fingerprint}`) === 1
-      : false;
+    // Always use wrapped helper for graceful fallback on Redis errors.
+    const hasLiked = await hasVisitorLiked(slug, fingerprint);
 
     return NextResponse.json({
       count,

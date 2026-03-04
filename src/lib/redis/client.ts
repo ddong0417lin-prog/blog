@@ -5,12 +5,29 @@ import { Redis } from '@upstash/redis';
  * 用于边缘环境的 Redis 操作
  */
 
+function sanitizeEnv(value?: string): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  // Handle copied values wrapped by quotes.
+  return trimmed.replace(/^['"]|['"]$/g, '');
+}
+
+function isValidRedisUrl(value: string): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 // 检查环境变量是否配置
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisUrl = sanitizeEnv(process.env.UPSTASH_REDIS_REST_URL);
+const redisToken = sanitizeEnv(process.env.UPSTASH_REDIS_REST_TOKEN);
 
 // 是否启用 Redis（需要配置环境变量）
-export const isRedisEnabled = !!(redisUrl && redisToken);
+export const isRedisEnabled = isValidRedisUrl(redisUrl) && !!redisToken;
 
 // Redis 客户端实例
 export const redis = isRedisEnabled
