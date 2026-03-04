@@ -74,14 +74,15 @@ class PostServiceImpl implements ContentService {
 
     this.dataSourceIdPromise = (async () => {
       // 优先使用显式 data source id 配置
-      const explicitDataSourceId = process.env.NOTION_DATA_SOURCE_ID;
+      const explicitDataSourceId = process.env.NOTION_DATA_SOURCE_ID?.trim();
       if (explicitDataSourceId) {
         return explicitDataSourceId;
       }
 
       // 默认把 NOTION_DATABASE_ID 视作 data_source_id（兼容新版 Notion URL）。
       // 如需从 database_id 自动解析 data_source_id，请设置 NOTION_ID_KIND=database。
-      if (process.env.NOTION_ID_KIND !== 'database') {
+      const notionIdKind = process.env.NOTION_ID_KIND?.trim().toLowerCase();
+      if (notionIdKind !== 'database') {
         return databaseId;
       }
 
