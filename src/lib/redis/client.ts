@@ -45,6 +45,9 @@ export const REDIS_KEYS = {
   likeCount: (postSlug: string) => `blog:like_count:${postSlug}`,
   visitorLike: (postSlug: string, fingerprint: string) =>
     `blog:visitor:${postSlug}:${fingerprint}`,
+  viewCount: (postSlug: string) => `blog:view_count:${postSlug}`,
+  visitorView: (postSlug: string, fingerprint: string) =>
+    `blog:view_visitor:${postSlug}:${fingerprint}`,
 } as const;
 
 export async function getLikeCount(postSlug: string): Promise<number> {
@@ -130,6 +133,76 @@ export async function getLikeCounts(
     return counts;
   } catch (error) {
     console.error('Failed to get like counts:', error);
+    return {};
+  }
+}
+
+export async function getViewCount(postSlug: string): Promise<number> {
+  if (!redis) return 0;
+
+  try {
+    const count = await redis.get<number>(REDIS_KEYS.viewCount(postSlug));
+    return count ?? 0;
+  } catch (error) {
+    console.error('Failed to get view count:', error);
+    return 0;
+  }
+}
+
+export async function addView(
+  postSlug: string,
+  fingerprint: string
+): Promise<{ success: boolean; count: number }> {
+  if (!redis) {
+    return { success: false, count: 0 };
+  }
+
+  try {
+    const visitorKey = REDIS_KEYS.visitorView(postSlug, fingerprint);
+    const countKey = REDIS_KEYS.viewCount(postSlug);
+
+    const result = await redis.set(visitorKey, Date.now().toString(), {
+      nx: true,
+      ex: 60 * 60 * 24 * 180,
+    });
+
+    if (result === 'OK') {
+      const newCount = await redis.incr(countKey);
+      return { success: true, count: newCount };
+    }
+
+    const currentCount = await getViewCount(postSlug);
+    return { success: false, count: currentCount };
+  } catch (error) {
+    console.error('Failed to add view:', error);
+    const currentCount = await getViewCount(postSlug);
+    return { success: false, count: currentCount };
+  }
+}
+
+export async function getViewCounts(
+  postSlugs: string[]
+): Promise<Record<string, number>> {
+  if (!redis || postSlugs.length === 0) {
+    return {};
+  }
+
+  try {
+    const pipeline = redis.pipeline();
+    for (const slug of postSlugs) {
+      pipeline.get<number>(REDIS_KEYS.viewCount(slug));
+    }
+
+    const results = await pipeline.exec();
+    const counts: Record<string, number> = {};
+
+    postSlugs.forEach((slug, index) => {
+      counts[slug] = (results[index] as number) ?? 0;
+    });
+
+    return counts;
+  } catch (error) {
+    console.error('Failed to get view counts:', error);
     return {};
   }
 }

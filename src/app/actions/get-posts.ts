@@ -12,7 +12,7 @@ import { postService } from '@/lib/content';
 import type { ListOptions } from '@/contracts/types';
 import { unstable_cache } from 'next/cache';
 import { ISR_CONFIG } from '@/lib/constants';
-import { getLikeCounts } from '@/lib/redis/client';
+import { getLikeCounts, getViewCounts } from '@/lib/redis/client';
 
 /**
  * 获取已发布文章列表（带缓存）
@@ -199,5 +199,44 @@ export async function getHotPostsWindow(options?: {
     nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
     total: ranked.length,
     likeCounts: countsForPage,
+  };
+}
+
+export async function getMostViewedPostsWindow(options?: {
+  pageSize?: number;
+  startCursor?: string;
+  limit?: number;
+}) {
+  const pageSize = options?.pageSize || 12;
+  const limit = Math.min(options?.limit || 100, 100);
+  const startIndex = parseCursorToIndex(options?.startCursor);
+
+  const allPosts = await getAllPublishedPosts();
+  const viewCounts = await getViewCounts(allPosts.map((post) => post.id));
+
+  const ranked = [...allPosts]
+    .sort((a, b) => {
+      const viewDiff = (viewCounts[b.id] || 0) - (viewCounts[a.id] || 0);
+      if (viewDiff !== 0) return viewDiff;
+
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+
+  const pageItems = ranked.slice(startIndex, startIndex + pageSize);
+  const hasMore = startIndex + pageSize < ranked.length;
+  const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
+    acc[post.id] = viewCounts[post.id] || 0;
+    return acc;
+  }, {});
+
+  return {
+    data: pageItems,
+    hasMore,
+    nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
+    total: ranked.length,
+    viewCounts: countsForPage,
   };
 }

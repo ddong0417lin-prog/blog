@@ -1,14 +1,19 @@
 ﻿import Link from 'next/link';
-import { getHotPostsWindow, getLatestPostsWindow } from './actions/get-posts';
+import {
+  getHotPostsWindow,
+  getLatestPostsWindow,
+  getMostViewedPostsWindow,
+} from './actions/get-posts';
 import { SITE_CONFIG } from '@/lib/constants';
 import type { PostSummary } from '@/contracts/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const [latestResult, hotResult] = await Promise.all([
+  const [latestResult, hotLikeResult, hotViewResult] = await Promise.all([
     getLatestPostsWindow({ pageSize: 3, limit: 100 }),
     getHotPostsWindow({ pageSize: 3, limit: 100 }),
+    getMostViewedPostsWindow({ pageSize: 3, limit: 100 }),
   ]);
 
   return (
@@ -25,7 +30,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-3">
         <div className="paper-card px-6 py-8 md:px-8">
           <SectionHeader
             title="最新文章"
@@ -38,12 +43,22 @@ export default async function HomePage() {
 
         <div className="paper-card px-6 py-8 md:px-8">
           <SectionHeader
-            title="热点文章"
+            title="最多点赞"
             subtitle="按点赞量排序"
-            href="/hot"
-            total={hotResult.total}
+            href="/hot?metric=likes"
+            total={hotLikeResult.total}
           />
-          <CompactPostList posts={hotResult.data} likeCounts={hotResult.likeCounts} />
+          <CompactPostList posts={hotLikeResult.data} metricCounts={hotLikeResult.likeCounts} metricLabel="👍" />
+        </div>
+
+        <div className="paper-card px-6 py-8 md:px-8">
+          <SectionHeader
+            title="最多阅读"
+            subtitle="按访客量排序"
+            href="/hot?metric=views"
+            total={hotViewResult.total}
+          />
+          <CompactPostList posts={hotViewResult.data} metricCounts={hotViewResult.viewCounts} metricLabel="👀" />
         </div>
       </section>
     </div>
@@ -83,10 +98,12 @@ function SectionHeader({
 
 function CompactPostList({
   posts,
-  likeCounts,
+  metricCounts,
+  metricLabel,
 }: {
   posts: PostSummary[];
-  likeCounts?: Record<string, number>;
+  metricCounts?: Record<string, number>;
+  metricLabel?: string;
 }) {
   if (posts.length === 0) {
     return (
@@ -112,9 +129,9 @@ function CompactPostList({
           >
             <div className="flex items-start justify-between gap-3">
               <h3 className="line-clamp-1 text-lg font-medium">{post.title}</h3>
-              {likeCounts && (
+              {metricCounts && metricLabel && (
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  👍 {likeCounts[post.id] || 0}
+                  {metricLabel} {metricCounts[post.id] || 0}
                 </span>
               )}
             </div>

@@ -7,7 +7,9 @@ import { TableOfContents } from '@/components/posts/TableOfContents';
 import { RelatedPosts } from '@/components/posts/RelatedPosts';
 import { GiscusComments } from '@/components/comments/GiscusComments';
 import { LikeButton } from '@/components/interaction/LikeButton';
+import { ViewTracker } from '@/components/interaction/ViewTracker';
 import { SITE_CONFIG } from '@/lib/constants';
+import { getViewCount } from '@/lib/redis/client';
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
@@ -54,7 +56,10 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  const relatedPosts = await getRelatedPosts(decodedSlug, 3);
+  const [relatedPosts, viewCount] = await Promise.all([
+    getRelatedPosts(decodedSlug, 3),
+    getViewCount(post.id),
+  ]);
 
   return (
     <article className="page-container py-10 md:py-12">
@@ -79,7 +84,8 @@ export default async function PostPage({ params }: PostPageProps) {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8 xl:col-span-9">
-          <PostHeader post={post} />
+          <PostHeader post={post} viewCount={viewCount} />
+          <ViewTracker slug={post.id} />
 
           <section className="paper-card p-6 md:p-8">
             <PostContent content={post.content} />
@@ -111,4 +117,3 @@ export default async function PostPage({ params }: PostPageProps) {
     </article>
   );
 }
-

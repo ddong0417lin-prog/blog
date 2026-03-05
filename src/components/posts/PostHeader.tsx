@@ -1,12 +1,13 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import type { PostDetail } from '@/contracts/types';
 
 interface PostHeaderProps {
   post: PostDetail;
+  viewCount?: number;
 }
 
-export function PostHeader({ post }: PostHeaderProps) {
+export function PostHeader({ post, viewCount = 0 }: PostHeaderProps) {
   const formattedDate = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString('zh-CN', {
         year: 'numeric',
@@ -36,6 +37,8 @@ export function PostHeader({ post }: PostHeaderProps) {
         <time dateTime={post.publishedAt || undefined}>{formattedDate}</time>
         <span>·</span>
         <span>{post.readingTime} 分钟阅读</span>
+        <span>·</span>
+        <span>👀 {viewCount}</span>
         {post.updatedAt !== post.publishedAt && (
           <>
             <span>·</span>
@@ -62,4 +65,3 @@ export function PostHeader({ post }: PostHeaderProps) {
     </header>
   );
 }
-

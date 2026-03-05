@@ -1,42 +1,88 @@
-import Link from 'next/link';
-import { getHotPostsWindow } from '@/app/actions/get-posts';
+﻿import Link from 'next/link';
+import { getHotPostsWindow, getMostViewedPostsWindow } from '@/app/actions/get-posts';
 
 interface HotPageProps {
-  searchParams: Promise<{ startCursor?: string }>;
+  searchParams: Promise<{ startCursor?: string; metric?: string }>;
 }
 
 export const dynamic = 'force-dynamic';
 
 export default async function HotPage({ searchParams }: HotPageProps) {
-  const { startCursor } = await searchParams;
-  const { data, hasMore, nextCursor, total, likeCounts } = await getHotPostsWindow({
-    pageSize: 12,
-    startCursor,
-    limit: 100,
-  });
+  const { startCursor, metric } = await searchParams;
+  const activeMetric = metric === 'views' ? 'views' : 'likes';
+
+  const likeResult = activeMetric === 'likes'
+    ? await getHotPostsWindow({
+        pageSize: 12,
+        startCursor,
+        limit: 100,
+      })
+    : null;
+  const viewResult = activeMetric === 'views'
+    ? await getMostViewedPostsWindow({
+        pageSize: 12,
+        startCursor,
+        limit: 100,
+      })
+    : null;
+
+  const result = likeResult ?? viewResult;
+  const counts = activeMetric === 'views' ? viewResult?.viewCounts : likeResult?.likeCounts;
+  const icon = activeMetric === 'views' ? '👀' : '👍';
+  const title = activeMetric === 'views' ? '最多阅读' : '最多点赞';
+
+  if (!result) {
+    return null;
+  }
 
   return (
     <div className="page-container py-10 md:py-12">
       <section className="paper-card mx-auto max-w-6xl px-6 py-8 md:px-8">
         <div className="mb-6">
-          <h1 className="text-4xl font-semibold">热点文章</h1>
+          <h1 className="text-4xl font-semibold">热度榜单</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            按点赞量排序 · 同点赞按发布时间倒序 · 最多展示 100 篇 · 当前 {total} 篇
+            展示上限 100 篇，支持游标分页加载
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/hot?metric=likes"
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                activeMetric === 'likes'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/80 hover:bg-accent'
+              }`}
+              data-interactive="true"
+            >
+              最多点赞
+            </Link>
+            <Link
+              href="/hot?metric=views"
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                activeMetric === 'views'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/80 hover:bg-accent'
+              }`}
+              data-interactive="true"
+            >
+              最多阅读
+            </Link>
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            当前视图：{title} · 当前 {result.total} 篇
           </p>
         </div>
 
-        {data.length === 0 ? (
+        {result.data.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/90 bg-muted/30 px-6 py-14 text-center">
-            <p className="text-base text-muted-foreground">暂无热点文章</p>
+            <p className="text-base text-muted-foreground">暂无榜单文章</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {data.map((post, index) => {
+            {result.data.map((post, index) => {
               const rank = Number(startCursor || 0) + index + 1;
               const dateLabel = post.publishedAt
                 ? new Date(post.publishedAt).toLocaleDateString('zh-CN')
                 : '未发布';
-              const likes = likeCounts[post.id] || 0;
 
               return (
                 <Link
@@ -47,7 +93,9 @@ export default async function HotPage({ searchParams }: HotPageProps) {
                 >
                   <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>#{rank}</span>
-                    <span>👍 {likes}</span>
+                    <span>
+                      {icon} {counts?.[post.id] || 0}
+                    </span>
                   </div>
                   <h2 className="line-clamp-1 text-lg font-medium">{post.title}</h2>
                   {post.excerpt && (
@@ -63,10 +111,10 @@ export default async function HotPage({ searchParams }: HotPageProps) {
           </div>
         )}
 
-        {hasMore && nextCursor && (
+        {result.hasMore && result.nextCursor && (
           <div className="mt-8 flex justify-center">
             <a
-              href={`?startCursor=${nextCursor}`}
+              href={`?metric=${activeMetric}&startCursor=${result.nextCursor}`}
               className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-accent"
               data-interactive="true"
             >
