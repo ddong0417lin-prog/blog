@@ -18,6 +18,10 @@ interface LikeButtonProps {
   initialCount?: number;
 }
 
+const LIKE_TEXT_DISABLED = '\u70b9\u8d5e\u529f\u80fd\u672a\u542f\u7528';
+const LIKE_TEXT_DONE = '\u5df2\u9001\u4e0a\u4e00\u6735\u5c0f\u7ea2\u82b1';
+const LIKE_TEXT_CTA = '\u70b9\u4e2a\u8d5e';
+
 function getLocalStorageKey(slug: string): string {
   return `blog:liked:${slug}`;
 }
@@ -110,7 +114,7 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Heart className="h-5 w-5" />
-        <span className="text-sm">���޹���δ����</span>
+        <span className="text-sm">{LIKE_TEXT_DISABLED}</span>
       </div>
     );
   }
@@ -133,7 +137,7 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
         <Heart className={cn('h-5 w-5 transition-all', hasLiked && 'fill-current')} />
         <span className={cn('font-medium transition-transform', pulse && 'scale-110')}>{count}</span>
       </Button>
-      <span className="text-sm text-muted-foreground">{hasLiked ? '������һ��С�컨' : '�����'}</span>
+      <span className="text-sm text-muted-foreground">{hasLiked ? LIKE_TEXT_DONE : LIKE_TEXT_CTA}</span>
     </div>
   );
 }
