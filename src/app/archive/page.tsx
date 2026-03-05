@@ -39,7 +39,7 @@ function parseQueryMonth(value?: string): string | null {
   return /^(0[1-9]|1[0-2])$/.test(value) ? value : null;
 }
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function ArchivePage({ searchParams }: ArchivePageProps) {
   const posts = await getAllPublishedPosts();

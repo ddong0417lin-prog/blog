@@ -55,7 +55,7 @@ export const getAllTags = unstable_cache(
   },
   ['all-tags'],
   {
-    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
+    revalidate: ISR_CONFIG.LIST_REVALIDATE,
     tags: ['tags'],
   }
 );
@@ -69,7 +69,7 @@ export const getAllCategories = unstable_cache(
   },
   ['all-categories'],
   {
-    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
+    revalidate: ISR_CONFIG.LIST_REVALIDATE,
     tags: ['categories'],
   }
 );
@@ -126,7 +126,7 @@ export const getAllPublishedPosts = unstable_cache(
   },
   ['all-published-posts'],
   {
-    revalidate: ISR_CONFIG.DETAIL_REVALIDATE,
+    revalidate: ISR_CONFIG.LIST_REVALIDATE,
     tags: ['posts'],
   }
 );

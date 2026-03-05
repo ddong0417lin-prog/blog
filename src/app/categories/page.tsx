@@ -2,7 +2,7 @@
 import { getAllCategories } from '@/app/actions/get-posts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function CategoriesPage() {
   const categories = await getAllCategories();
