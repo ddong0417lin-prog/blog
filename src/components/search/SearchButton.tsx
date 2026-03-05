@@ -24,7 +24,7 @@ export function SearchButton({ variant = 'ghost', showLabel = false }: SearchBut
         variant={variant}
         size={showLabel ? 'default' : 'icon'}
         onClick={() => setOpen(true)}
-        className="gap-2"
+        className="relative gap-2"
         aria-label="搜索"
       >
         <Search className="h-4 w-4" />
