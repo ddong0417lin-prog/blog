@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { getOrCreateVisitorId } from '@/lib/client-visitor-id';
 
 interface ViewTrackerProps {
   slug: string;
@@ -9,12 +10,19 @@ interface ViewTrackerProps {
 export function ViewTracker({ slug }: ViewTrackerProps) {
   useEffect(() => {
     const controller = new AbortController();
+    const visitorId = getOrCreateVisitorId();
 
-    fetch(`/api/view?slug=${encodeURIComponent(slug)}`, {
-      method: 'GET',
-      signal: controller.signal,
-      cache: 'no-store',
-    }).catch(() => {
+    fetch(
+      `/api/view?slug=${encodeURIComponent(slug)}&visitorId=${encodeURIComponent(visitorId)}`,
+      {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-store',
+        headers: {
+          'x-visitor-id': visitorId,
+        },
+      }
+    ).catch(() => {
       // Ignore tracking errors in UI.
     });
 
@@ -23,4 +31,3 @@ export function ViewTracker({ slug }: ViewTrackerProps) {
 
   return null;
 }
-

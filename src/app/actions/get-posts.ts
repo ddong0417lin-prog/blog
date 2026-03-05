@@ -12,7 +12,12 @@ import { postService } from '@/lib/content';
 import type { ListOptions } from '@/contracts/types';
 import { unstable_cache } from 'next/cache';
 import { ISR_CONFIG } from '@/lib/constants';
-import { getLikeCounts, getViewCounts } from '@/lib/redis/client';
+import {
+  getCommentCounts,
+  getLikeCounts,
+  getRankedPostIds,
+  getViewCounts,
+} from '@/lib/redis/client';
 
 /**
  * 获取已发布文章列表（带缓存）
@@ -140,6 +145,15 @@ function sortByPublishedAtDesc<T extends { publishedAt: string | null }>(items: 
   });
 }
 
+function pickFromRankedIds<T extends { id: string }>(
+  allItems: T[],
+  ids: string[]
+): T[] {
+  if (ids.length === 0) return [];
+  const byId = new Map(allItems.map((item) => [item.id, item] as const));
+  return ids.map((id) => byId.get(id)).filter(Boolean) as T[];
+}
+
 export async function getLatestPostsWindow(options?: {
   pageSize?: number;
   startCursor?: string;
@@ -173,11 +187,10 @@ export async function getHotPostsWindow(options?: {
   const startIndex = parseCursorToIndex(options?.startCursor);
 
   const allPosts = await getAllPublishedPosts();
-  const likeCounts = await getLikeCounts(allPosts.map((post) => post.id));
-
-  const ranked = [...allPosts]
+  const likeCountsAll = await getLikeCounts(allPosts.map((post) => post.id));
+  const rankedByValue = [...allPosts]
     .sort((a, b) => {
-      const likeDiff = (likeCounts[b.id] || 0) - (likeCounts[a.id] || 0);
+      const likeDiff = (likeCountsAll[b.id] || 0) - (likeCountsAll[a.id] || 0);
       if (likeDiff !== 0) return likeDiff;
 
       const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
@@ -186,10 +199,22 @@ export async function getHotPostsWindow(options?: {
     })
     .slice(0, limit);
 
-  const pageItems = ranked.slice(startIndex, startIndex + pageSize);
-  const hasMore = startIndex + pageSize < ranked.length;
+  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
+    'likes',
+    startIndex,
+    pageSize,
+    limit
+  );
+
+  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
+  const pageItems =
+    rankedFromIndex.length > 0
+      ? rankedFromIndex
+      : rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  const hasMore = startIndex + pageSize < total;
   const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
-    acc[post.id] = likeCounts[post.id] || 0;
+    acc[post.id] = likeCountsAll[post.id] || 0;
     return acc;
   }, {});
 
@@ -197,7 +222,7 @@ export async function getHotPostsWindow(options?: {
     data: pageItems,
     hasMore,
     nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
-    total: ranked.length,
+    total,
     likeCounts: countsForPage,
   };
 }
@@ -212,11 +237,10 @@ export async function getMostViewedPostsWindow(options?: {
   const startIndex = parseCursorToIndex(options?.startCursor);
 
   const allPosts = await getAllPublishedPosts();
-  const viewCounts = await getViewCounts(allPosts.map((post) => post.id));
-
-  const ranked = [...allPosts]
+  const viewCountsAll = await getViewCounts(allPosts.map((post) => post.id));
+  const rankedByValue = [...allPosts]
     .sort((a, b) => {
-      const viewDiff = (viewCounts[b.id] || 0) - (viewCounts[a.id] || 0);
+      const viewDiff = (viewCountsAll[b.id] || 0) - (viewCountsAll[a.id] || 0);
       if (viewDiff !== 0) return viewDiff;
 
       const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
@@ -225,10 +249,22 @@ export async function getMostViewedPostsWindow(options?: {
     })
     .slice(0, limit);
 
-  const pageItems = ranked.slice(startIndex, startIndex + pageSize);
-  const hasMore = startIndex + pageSize < ranked.length;
+  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
+    'views',
+    startIndex,
+    pageSize,
+    limit
+  );
+
+  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
+  const pageItems =
+    rankedFromIndex.length > 0
+      ? rankedFromIndex
+      : rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  const hasMore = startIndex + pageSize < total;
   const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
-    acc[post.id] = viewCounts[post.id] || 0;
+    acc[post.id] = viewCountsAll[post.id] || 0;
     return acc;
   }, {});
 
@@ -236,7 +272,57 @@ export async function getMostViewedPostsWindow(options?: {
     data: pageItems,
     hasMore,
     nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
-    total: ranked.length,
+    total,
     viewCounts: countsForPage,
+  };
+}
+
+export async function getMostCommentedPostsWindow(options?: {
+  pageSize?: number;
+  startCursor?: string;
+  limit?: number;
+}) {
+  const pageSize = options?.pageSize || 12;
+  const limit = Math.min(options?.limit || 100, 100);
+  const startIndex = parseCursorToIndex(options?.startCursor);
+
+  const allPosts = await getAllPublishedPosts();
+  const commentCountsAll = await getCommentCounts(allPosts.map((post) => post.id));
+  const rankedByValue = [...allPosts]
+    .sort((a, b) => {
+      const commentDiff = (commentCountsAll[b.id] || 0) - (commentCountsAll[a.id] || 0);
+      if (commentDiff !== 0) return commentDiff;
+
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+
+  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
+    'comments',
+    startIndex,
+    pageSize,
+    limit
+  );
+
+  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
+  const pageItems =
+    rankedFromIndex.length > 0
+      ? rankedFromIndex
+      : rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  const hasMore = startIndex + pageSize < total;
+  const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
+    acc[post.id] = commentCountsAll[post.id] || 0;
+    return acc;
+  }, {});
+
+  return {
+    data: pageItems,
+    hasMore,
+    nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
+    total,
+    commentCounts: countsForPage,
   };
 }

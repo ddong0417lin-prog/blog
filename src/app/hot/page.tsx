@@ -1,5 +1,9 @@
 ﻿import Link from 'next/link';
-import { getHotPostsWindow, getMostViewedPostsWindow } from '@/app/actions/get-posts';
+import {
+  getHotPostsWindow,
+  getMostCommentedPostsWindow,
+  getMostViewedPostsWindow,
+} from '@/app/actions/get-posts';
 
 interface HotPageProps {
   searchParams: Promise<{ startCursor?: string; metric?: string }>;
@@ -9,27 +13,49 @@ export const dynamic = 'force-dynamic';
 
 export default async function HotPage({ searchParams }: HotPageProps) {
   const { startCursor, metric } = await searchParams;
-  const activeMetric = metric === 'views' ? 'views' : 'likes';
+  const activeMetric =
+    metric === 'views' || metric === 'comments' ? metric : 'likes';
 
-  const likeResult = activeMetric === 'likes'
-    ? await getHotPostsWindow({
-        pageSize: 12,
-        startCursor,
-        limit: 100,
-      })
-    : null;
-  const viewResult = activeMetric === 'views'
-    ? await getMostViewedPostsWindow({
-        pageSize: 12,
-        startCursor,
-        limit: 100,
-      })
-    : null;
+  const likeResult =
+    activeMetric === 'likes'
+      ? await getHotPostsWindow({
+          pageSize: 12,
+          startCursor,
+          limit: 100,
+        })
+      : null;
+  const viewResult =
+    activeMetric === 'views'
+      ? await getMostViewedPostsWindow({
+          pageSize: 12,
+          startCursor,
+          limit: 100,
+        })
+      : null;
+  const commentResult =
+    activeMetric === 'comments'
+      ? await getMostCommentedPostsWindow({
+          pageSize: 12,
+          startCursor,
+          limit: 100,
+        })
+      : null;
 
-  const result = likeResult ?? viewResult;
-  const counts = activeMetric === 'views' ? viewResult?.viewCounts : likeResult?.likeCounts;
-  const icon = activeMetric === 'views' ? '👀' : '👍';
-  const title = activeMetric === 'views' ? '最多阅读' : '最多点赞';
+  const result = likeResult ?? viewResult ?? commentResult;
+  const counts =
+    activeMetric === 'views'
+      ? viewResult?.viewCounts
+      : activeMetric === 'comments'
+      ? commentResult?.commentCounts
+      : likeResult?.likeCounts;
+  const icon =
+    activeMetric === 'views' ? '👀' : activeMetric === 'comments' ? '💬' : '👍';
+  const title =
+    activeMetric === 'views'
+      ? '最多阅读'
+      : activeMetric === 'comments'
+      ? '最多评论'
+      : '最多点赞';
 
   if (!result) {
     return null;
@@ -65,6 +91,17 @@ export default async function HotPage({ searchParams }: HotPageProps) {
               data-interactive="true"
             >
               最多阅读
+            </Link>
+            <Link
+              href="/hot?metric=comments"
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                activeMetric === 'comments'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/80 hover:bg-accent'
+              }`}
+              data-interactive="true"
+            >
+              最多评论
             </Link>
           </div>
           <p className="mt-3 text-sm text-muted-foreground">

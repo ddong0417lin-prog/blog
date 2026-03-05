@@ -5,6 +5,7 @@ import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { dispatchFlowerBurst } from '@/components/effects/fx-events';
+import { getOrCreateVisitorId } from '@/lib/client-visitor-id';
 
 interface LikeResponse {
   count: number;
@@ -42,7 +43,10 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
   useEffect(() => {
     async function fetchLikeStatus() {
       try {
-        const response = await fetch(`/api/like?slug=${encodeURIComponent(slug)}`);
+        const visitorId = getOrCreateVisitorId();
+        const response = await fetch(
+          `/api/like?slug=${encodeURIComponent(slug)}&visitorId=${encodeURIComponent(visitorId)}`
+        );
         if (!response.ok) return;
         const data: LikeResponse = await response.json();
         setCount(data.count);
@@ -78,12 +82,14 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
     setIsLoading(true);
 
     try {
+      const visitorId = getOrCreateVisitorId();
       const response = await fetch('/api/like', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-visitor-id': visitorId,
         },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ slug, visitorId }),
       });
 
       if (!response.ok) return;
@@ -104,7 +110,7 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Heart className="h-5 w-5" />
-        <span className="text-sm">点赞功能未启用</span>
+        <span className="text-sm">���޹���δ����</span>
       </div>
     );
   }
@@ -127,7 +133,7 @@ export function LikeButton({ slug, initialCount = 0 }: LikeButtonProps) {
         <Heart className={cn('h-5 w-5 transition-all', hasLiked && 'fill-current')} />
         <span className={cn('font-medium transition-transform', pulse && 'scale-110')}>{count}</span>
       </Button>
-      <span className="text-sm text-muted-foreground">{hasLiked ? '已送上一朵小红花' : '点个赞'}</span>
+      <span className="text-sm text-muted-foreground">{hasLiked ? '������һ��С�컨' : '�����'}</span>
     </div>
   );
 }
@@ -140,4 +146,3 @@ export function LikeButtonSkeleton() {
     </div>
   );
 }
-

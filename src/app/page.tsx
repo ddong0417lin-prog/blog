@@ -2,6 +2,7 @@
 import {
   getHotPostsWindow,
   getLatestPostsWindow,
+  getMostCommentedPostsWindow,
   getMostViewedPostsWindow,
 } from './actions/get-posts';
 import { SITE_CONFIG } from '@/lib/constants';
@@ -10,10 +11,11 @@ import type { PostSummary } from '@/contracts/types';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const [latestResult, hotLikeResult, hotViewResult] = await Promise.all([
+  const [latestResult, hotLikeResult, hotViewResult, hotCommentResult] = await Promise.all([
     getLatestPostsWindow({ pageSize: 3, limit: 100 }),
     getHotPostsWindow({ pageSize: 3, limit: 100 }),
     getMostViewedPostsWindow({ pageSize: 3, limit: 100 }),
+    getMostCommentedPostsWindow({ pageSize: 3, limit: 100 }),
   ]);
 
   return (
@@ -30,7 +32,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
+      <section className="grid gap-6 md:grid-cols-2">
         <div className="paper-card px-6 py-8 md:px-8">
           <SectionHeader
             title="最新文章"
@@ -59,6 +61,16 @@ export default async function HomePage() {
             total={hotViewResult.total}
           />
           <CompactPostList posts={hotViewResult.data} metricCounts={hotViewResult.viewCounts} metricLabel="👀" />
+        </div>
+
+        <div className="paper-card px-6 py-8 md:px-8">
+          <SectionHeader
+            title="最多评论"
+            subtitle="按评论量排序"
+            href="/hot?metric=comments"
+            total={hotCommentResult.total}
+          />
+          <CompactPostList posts={hotCommentResult.data} metricCounts={hotCommentResult.commentCounts} metricLabel="💬" />
         </div>
       </section>
     </div>

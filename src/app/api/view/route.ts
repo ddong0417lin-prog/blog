@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addView, getViewCount, isRedisEnabled } from '@/lib/redis/client';
-
-function generateVisitorFingerprint(request: NextRequest): string {
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
-  const userAgent = request.headers.get('user-agent') || 'unknown';
-  return Buffer.from(`${ip}:${userAgent}`).toString('base64');
-}
+import {
+  createVisitorFingerprint,
+  getClientVisitorIdFromRequest,
+} from '@/lib/visitor-fingerprint';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -23,7 +18,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const fingerprint = generateVisitorFingerprint(request);
+    const clientVisitorId = getClientVisitorIdFromRequest(request);
+    const fingerprint = createVisitorFingerprint(request, clientVisitorId);
     const result = await addView(slug, fingerprint);
 
     return NextResponse.json({
@@ -57,4 +53,3 @@ export async function HEAD(request: NextRequest) {
     return new NextResponse(null, { status: 204 });
   }
 }
-
