@@ -45,7 +45,7 @@ export function TableOfContents({ toc }: TableOfContentsProps) {
   };
 
   return (
-    <nav className="space-y-2">
+    <nav className="space-y-2 max-h-[calc(100vh-9rem)] overflow-y-auto pr-1">
       <h4 className="font-semibold text-sm mb-4">目录</h4>
       <ul className="space-y-2 text-sm">
         {toc.map((item) => (

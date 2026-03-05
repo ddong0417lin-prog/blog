@@ -35,7 +35,13 @@ function BlockRenderer({ block }: { block: Block }) {
 
   switch (block.type) {
     case 'paragraph':
-      return renderHtml('p');
+      return (
+        <p
+          id={block.id}
+          className="scroll-mt-20"
+          dangerouslySetInnerHTML={{ __html: block.content }}
+        />
+      );
 
     case 'heading_1':
       return (

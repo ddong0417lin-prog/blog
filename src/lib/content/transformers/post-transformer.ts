@@ -358,7 +358,48 @@ function generateToc(blocks: BlockObjectResponse[]): TocItem[] {
   const toc: TocItem[] = [];
   let headingCounter = 0;
 
-  for (const block of blocks) {
+  const punctuationPattern = /[。！？.!?：:；;，,]/;
+  const summaryLikeTitles = new Set([
+    '总结',
+    '小结',
+    '结论',
+    '最后',
+    '尾声',
+    '复盘',
+    '经验',
+    '教训',
+  ]);
+  const isLikelyPseudoHeading = (
+    text: string,
+    nextBlock?: BlockObjectResponse
+  ): boolean => {
+    const normalized = text.trim();
+    if (!normalized) {
+      return false;
+    }
+    if (summaryLikeTitles.has(normalized)) {
+      return true;
+    }
+    if (normalized.length < 2 || normalized.length > 18) {
+      return false;
+    }
+    if (punctuationPattern.test(normalized)) {
+      return false;
+    }
+
+    const nextType = nextBlock?.type;
+    return (
+      nextType === 'bulleted_list_item' ||
+      nextType === 'numbered_list_item' ||
+      nextType === 'quote' ||
+      nextType === 'callout' ||
+      nextType === 'to_do'
+    );
+  };
+
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index];
+    const nextBlock = blocks[index + 1];
     if ('heading_1' in block && block.heading_1?.rich_text) {
       headingCounter++;
       const text = richTextToPlainText(block.heading_1.rich_text);
@@ -389,6 +430,18 @@ function generateToc(blocks: BlockObjectResponse[]): TocItem[] {
         level: 3,
         slug,
       });
+    } else if ('paragraph' in block && block.paragraph?.rich_text) {
+      const text = richTextToPlainText(block.paragraph.rich_text).trim();
+      if (isLikelyPseudoHeading(text, nextBlock)) {
+        headingCounter++;
+        const slug = `heading-${headingCounter}`;
+        toc.push({
+          id: block.id,
+          text,
+          level: 2,
+          slug,
+        });
+      }
     }
   }
 
