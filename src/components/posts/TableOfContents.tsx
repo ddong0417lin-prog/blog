@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TocItem } from '@/contracts/types';
 
 interface TableOfContentsProps {
@@ -9,22 +9,56 @@ interface TableOfContentsProps {
 
 export function TableOfContents({ toc }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const clickLockUntilRef = useRef(0);
 
   useEffect(() => {
+    const visibleHeadings = new Map<string, number>();
+
+    const pickTopMostVisibleHeading = () => {
+      if (visibleHeadings.size === 0) {
+        return null;
+      }
+
+      let nextActiveId: string | null = null;
+      let minTop = Number.POSITIVE_INFINITY;
+
+      visibleHeadings.forEach((top, id) => {
+        if (top < minTop) {
+          minTop = top;
+          nextActiveId = id;
+        }
+      });
+
+      return nextActiveId;
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
+        if (Date.now() < clickLockUntilRef.current) {
+          return;
+        }
+
         entries.forEach((entry) => {
+          const headingId = entry.target.id;
+
           if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
+            visibleHeadings.set(headingId, entry.boundingClientRect.top);
+          } else {
+            visibleHeadings.delete(headingId);
           }
         });
+
+        const nextActiveId = pickTopMostVisibleHeading();
+        if (nextActiveId) {
+          setActiveId(nextActiveId);
+        }
       },
       {
-        rootMargin: '-20% 0% -35% 0%',
+        rootMargin: '-20% 0% -60% 0%',
+        threshold: [0, 1],
       }
     );
 
-    // 观察所有标题
     toc.forEach((item) => {
       const element = document.getElementById(item.id);
       if (element) {
@@ -40,13 +74,15 @@ export function TableOfContents({ toc }: TableOfContentsProps) {
   const scrollToHeading = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
+      clickLockUntilRef.current = Date.now() + 700;
+      setActiveId(id);
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
   return (
     <nav className="space-y-2 max-h-[calc(100vh-9rem)] overflow-y-auto pr-1">
-      <h4 className="font-semibold text-sm mb-4">目录</h4>
+      <h4 className="font-semibold text-sm mb-4">Ŀ¼</h4>
       <ul className="space-y-2 text-sm">
         {toc.map((item) => (
           <li key={item.id}>
