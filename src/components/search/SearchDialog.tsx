@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Loader2 } from 'lucide-react';
 import {
@@ -39,22 +40,24 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isMac, setIsMac] = useState(false);
 
-  // 同步外部 open 状态
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad|iPod/i.test(navigator.platform));
+  }, []);
+
   useEffect(() => {
     if (openProp !== undefined) {
       setOpen(openProp);
     }
   }, [openProp]);
 
-  // 快捷键监听 (Cmd/Ctrl + K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setOpen((prev) => !prev);
       }
-      // ESC 关闭
       if (e.key === 'Escape') {
         setOpen(false);
       }
@@ -64,7 +67,6 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 搜索防抖 - 通过 API 调用
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -178,8 +180,14 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
             )}
             {!query && (
               <CommandGroup heading="快捷键">
-                <div className="px-2 py-3 text-sm text-muted-foreground">
-                  按 <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">K</kbd> 打开搜索
+                <div className="px-2 py-3 text-sm text-muted-foreground flex items-center gap-1.5">
+                  <span>按</span>
+                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-semibold text-foreground/90">
+                    {isMac ? '⌘' : 'Ctrl'}
+                  </kbd>
+                  <span>+</span>
+                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-semibold text-foreground/90">K</kbd>
+                  <span>打开搜索</span>
                 </div>
               </CommandGroup>
             )}
@@ -190,8 +198,7 @@ export function SearchDialog({ open: openProp, onOpenChange }: SearchDialogProps
   );
 }
 
-// 高亮匹配文本（解析 ** 包裹的内容）
-function highlightMatch(text: string): React.ReactNode {
+function highlightMatch(text: string): ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
