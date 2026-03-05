@@ -1,35 +1,52 @@
-# Notion Blog 部署指南（最新版）
+﻿# Notion Blog（新手部署版）
 
-这是一个用 **Next.js + Notion API** 搭的个人博客项目。  
-目标很简单：你在 Notion 写文章，网站自动读取并展示。
+一个基于 **Next.js + Notion API** 的个人博客模板。  
+你只需要在 Notion 写文章，网站会自动读取并展示。
 
-这份文档按当前代码整理，适合第一次部署的同学。
+- 博客示例：[https://blog-three-gilt-7yh9tj7yxv.vercel.app/](https://blog-three-gilt-7yh9tj7yxv.vercel.app/)
+- 代码仓库：[https://github.com/ddong0417lin-prog/blog](https://github.com/ddong0417lin-prog/blog)
+
+---
+
+## 这份文档适合谁
+
+适合第一次做博客、不会后端的新手。  
+你按顺序做完下面 6 步，就能把自己的博客跑起来并部署到 Vercel。
 
 ---
 
 ## 1. 先准备账号
 
-- GitHub
-- Notion
-- Vercel（可以直接用 GitHub 登录）
+你需要 3 个账号：
+
+1. GitHub（托管代码）
+2. Notion（写文章）
+3. Vercel（部署网站）
+
+可选：
+
+1. Upstash Redis（点赞/访客统计）
+2. Giscus（评论）
 
 ---
 
-## 2. 在 Notion 建好数据库
+## 2. 在 Notion 建文章数据库
 
-新建一个表格数据库，然后把字段名改成下面这些（名字要一致）：
+新建一个数据库（表格视图），字段建议如下：
 
-| 字段名 | 类型 | 必需 | 用途 |
-|---|---|---|---|
-| `标题` | Title | 是 | 文章标题 |
-| `日期` | Date | 建议 | 发布时间（为空时会回退到创建时间） |
-| `类型` | Select | 建议 | 分类 |
-| `标签` | Multi-select | 建议 | 标签 |
-| `状态` | Status | 建议 | 发布状态 |
-| `摘要` | Rich text | 否 | 列表摘要 |
-| `Slug` | Rich text | 否 | 文章链接名（可不填） |
+| 字段名 | 类型 | 说明 |
+|---|---|---|
+| 标题 | Title | 文章标题（必填） |
+| 日期 | Date | 发布时间（建议） |
+| 类型 | Select | 分类（建议） |
+| 标签 | Multi-select | 标签（建议） |
+| 状态 | Status | 发布状态（建议） |
+| 摘要 | Rich text | 列表摘要（可选） |
+| Slug | Rich text | 自定义链接（可选） |
 
-`状态` 里下面这些值会被当作“已发布”：
+### 状态字段如何算“已发布”
+
+以下值会被识别为已发布：
 
 - `Published`
 - `published`
@@ -37,80 +54,58 @@
 - `发布`
 - `公开`
 
-兼容旧字段：如果你有 `Published`（checkbox）并且为 `true`，也会被识别为已发布。
+> 你最容易漏的步骤：一定要把 Integration 连接到这个数据库（Share / Add connections）。
 
 ---
 
-## 3. 把 Integration 连接到这个数据库
+## 3. 获取 Notion 配置
 
-这一步最容易漏，漏了会直接 `object_not_found`。
+### 3.1 获取 `NOTION_TOKEN`
 
-1. 打开你的数据库页面
-2. 点右上角 `Share`（共享）或 `...`
-3. 找到 `Add connections`（添加连接）
-4. 选择你创建的 Notion Integration
+在 Notion Integrations 页面创建 Internal Integration：  
+[https://www.notion.so/my-integrations](https://www.notion.so/my-integrations)
 
----
+复制以 `ntn_` 开头的 token。
 
-## 4. 获取 Notion Token 和 Database ID
+### 3.2 获取 `NOTION_DATABASE_ID`
 
-### 4.1 Token
-
-去 <https://www.notion.so/my-integrations> 创建内部 Integration，复制 `ntn_` 开头的 Token。
-
-### 4.2 Database ID
-
-数据库页面 URL 形如：
+打开数据库页面 URL：
 
 ```text
 https://www.notion.so/<workspace>/<database_id>?v=<view_id>
 ```
 
-- `<database_id>` 就是 `NOTION_DATABASE_ID`
-- `?v=` 后面那个不是数据库 ID
+`<database_id>` 这段就是 `NOTION_DATABASE_ID`。
 
-### 4.3 Data Source ID（可选）
+### 3.3 `NOTION_DATA_SOURCE_ID` 要不要填
 
-当前代码支持两种方式：
+新手建议先不填，只用：
 
-- 新手推荐：只配 `NOTION_DATABASE_ID` + `NOTION_ID_KIND=database`
-- 进阶方式：直接配置 `NOTION_DATA_SOURCE_ID`（配置后优先使用它）
+- `NOTION_DATABASE_ID`
+- `NOTION_ID_KIND=database`
 
 ---
 
-## 5. 本地运行
+## 4. 本地跑起来
 
 ```bash
-git clone <你的仓库地址>
+git clone https://github.com/ddong0417lin-prog/blog.git
 cd blog
 npm install
 ```
 
-创建 `.env.local`：
+复制环境变量模板：
+
+```bash
+cp .env.example .env.local
+```
+
+然后编辑 `.env.local`，至少填这三项：
 
 ```env
 NOTION_TOKEN=你的NotionToken
 NOTION_DATABASE_ID=你的DatabaseID
 NOTION_ID_KIND=database
-
-# 可选（如果你已经拿到 data_source_id）
-# NOTION_DATA_SOURCE_ID=你的DataSourceID
-
-# 可选：点赞
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-# 可选：评论（Giscus）
-NEXT_PUBLIC_GISCUS_REPO=
-NEXT_PUBLIC_GISCUS_REPO_ID=
-NEXT_PUBLIC_GISCUS_CATEGORY=Announcements
-NEXT_PUBLIC_GISCUS_CATEGORY_ID=
-NEXT_PUBLIC_GISCUS_MAPPING=pathname
-NEXT_PUBLIC_GISCUS_REACTIONS_ENABLED=1
-NEXT_PUBLIC_GISCUS_EMIT_METADATA=0
-NEXT_PUBLIC_GISCUS_INPUT_POSITION=top
-NEXT_PUBLIC_GISCUS_THEME=preferred_color_scheme
-NEXT_PUBLIC_GISCUS_LANG=zh-CN
 ```
 
 启动开发环境：
@@ -119,7 +114,11 @@ NEXT_PUBLIC_GISCUS_LANG=zh-CN
 npm run dev
 ```
 
-上线前先本地构建：
+浏览器打开：
+
+- `http://localhost:3000`
+
+上线前先检查构建：
 
 ```bash
 npm run build
@@ -127,65 +126,94 @@ npm run build
 
 ---
 
-## 6. 部署到 Vercel
+## 5. 部署到 Vercel
 
 1. 在 Vercel 导入 GitHub 仓库
-2. 在项目环境变量里填写：
-   - 必填：`NOTION_TOKEN`、`NOTION_DATABASE_ID`
-   - 建议：`NOTION_ID_KIND=database`
-   - 可选：`NOTION_DATA_SOURCE_ID`、`UPSTASH_*`、`NEXT_PUBLIC_GISCUS_*`
+2. 在项目 Environment Variables 里填写变量（至少填必填项）
 3. 点击 Deploy
 
-注意：Vercel 不会读取你本机 `.env.local`，必须在 Vercel 控制台单独配置。
+必填：
+
+- `NOTION_TOKEN`
+- `NOTION_DATABASE_ID`
+
+建议：
+
+- `NOTION_ID_KIND=database`
+
+可选：
+
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `NEXT_PUBLIC_GISCUS_*`
+
+> 注意：Vercel 不会读取你本地 `.env.local`，必须在 Vercel 控制台单独配置。
 
 ---
 
-## 7. 常见问题（按出现频率）
+## 6. 发布第一篇文章
 
-### 1) 首页显示“暂无文章”
+1. 在 Notion 数据库新增一条记录
+2. 填好 `标题`、`日期`、`类型`、`标签`
+3. 把 `状态` 改成 `已发布` / `Published`
+4. 等待缓存刷新（默认有缓存）或重新部署一次
+
+---
+
+## 当前支持的核心功能
+
+- 首页三栏：最新文章、最多点赞、最多阅读
+- 热度页：支持“点赞榜 / 阅读榜”
+- 归档页：按年、月筛选
+- 分类页、标签页
+- 搜索（`Ctrl + K`）
+- 点赞与访客统计（Upstash）
+- 评论（Giscus，可选）
+- 明暗主题切换
+
+---
+
+## 常见问题（新手高频）
+
+### 1）首页显示“暂无文章”
 
 优先检查：
 
-- 文章 `状态` 是否是已发布值（如 `已发布` / `Published`）
-- Integration 是否连接到了数据库
-- Vercel 环境变量是否填在正确项目、正确环境（Production / Preview）
+1. 文章 `状态` 是否是已发布
+2. Integration 是否连到了正确数据库
+3. Vercel 环境变量是否填在正确项目
 
-### 2) 报错：`Missing required environment variables`
+### 2）报错：缺少 `NOTION_TOKEN` / `NOTION_DATABASE_ID`
 
-说明 Vercel 缺变量。去项目设置补齐后重新部署。
+说明 Vercel 环境变量没配好，补齐后重新部署。
 
-### 3) 报错：`object_not_found`
+### 3）报错：`object_not_found`
 
-几乎都是 Notion 连接权限问题。回到数据库页面重新 `Add connections`。
+一般是数据库没授权给 Integration，回 Notion 重新 Add connections。
 
-### 4) 报错：`Could not find property with name or id`
+### 4）报错：`Could not find property with name or id`
 
-数据库字段名不匹配。按本 README 的字段名逐个核对，尤其是：
+数据库字段名和项目映射不一致。优先把字段改成文档里的中文字段名。
 
-- `标题`
-- `类型`
-- `标签`
-- `状态`
-- `日期`
+### 5）点赞/访客统计不生效
 
-### 5) 换了数据库但还是读到旧内容
+检查：
 
-通常是 `NOTION_DATA_SOURCE_ID` 还指向旧库。  
-更新它，或者暂时删除它，只保留：
-
-- `NOTION_DATABASE_ID`
-- `NOTION_ID_KIND=database`
+1. `UPSTASH_REDIS_REST_URL` 是否是 `*.upstash.io` 的 REST 地址
+2. `UPSTASH_REDIS_REST_TOKEN` 是否正确
 
 ---
 
-## 8. 功能开关说明
+## 给新手的建议
 
-- 评论（Giscus）：不配变量就不显示评论区
-- 点赞（Upstash）：不配变量会降级为无持久化行为
-- 搜索：内置可用
+- 先只配 Notion 三个必填变量，跑通“文章展示”
+- 再加 Upstash（点赞/访客）
+- 最后再接 Giscus（评论）
+
+这样排查最省时间。
 
 ---
 
-## 9. License
+## License
 
 MIT
