@@ -146,8 +146,21 @@ npm run build
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `NEXT_PUBLIC_GISCUS_*`
+- `NOTION_WEBHOOK_SECRET`
+- `NOTION_WEBHOOK_VERIFICATION_TOKEN`
 
 > 注意：Vercel 不会读取你本地 `.env.local`，必须在 Vercel 控制台单独配置。
+
+### 可选：开启 Notion 近实时同步（推荐）
+
+如果你希望 Notion 新增/删除文章后几乎立刻生效，不想等缓存窗口：
+
+1. 在 Notion Integration 中配置 Webhook URL：  
+   `https://你的域名/api/notion/webhook`
+2. 在 Vercel 配置：
+   - `NOTION_WEBHOOK_SECRET`
+   - `NOTION_WEBHOOK_VERIFICATION_TOKEN`
+3. 当 Notion 推送 `page.* / data_source.*` 事件时，系统会自动刷新首页、分类、标签、归档等缓存。
 
 ---
 
@@ -182,6 +195,11 @@ npm run build
 1. 文章 `状态` 是否是已发布
 2. Integration 是否连到了正确数据库
 3. Vercel 环境变量是否填在正确项目
+
+### 6）Notion 改了内容，网站没立刻更新
+
+默认是缓存策略行为（当前约 5 分钟窗口）。  
+如果要“近实时”，按上文开启 Notion Webhook。
 
 ### 2）报错：缺少 `NOTION_TOKEN` / `NOTION_DATABASE_ID`
 
