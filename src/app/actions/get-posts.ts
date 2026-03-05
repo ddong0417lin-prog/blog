@@ -12,6 +12,7 @@ import { postService } from '@/lib/content';
 import type { ListOptions } from '@/contracts/types';
 import { unstable_cache } from 'next/cache';
 import { ISR_CONFIG } from '@/lib/constants';
+import { getLikeCounts } from '@/lib/redis/client';
 
 /**
  * 获取已发布文章列表（带缓存）
@@ -125,3 +126,78 @@ export const getAllPublishedPosts = unstable_cache(
     tags: ['posts'],
   }
 );
+
+function parseCursorToIndex(startCursor?: string): number {
+  const value = Number(startCursor || 0);
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+}
+
+function sortByPublishedAtDesc<T extends { publishedAt: string | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+export async function getLatestPostsWindow(options?: {
+  pageSize?: number;
+  startCursor?: string;
+  limit?: number;
+}) {
+  const pageSize = options?.pageSize || 12;
+  const limit = Math.min(options?.limit || 100, 100);
+  const startIndex = parseCursorToIndex(options?.startCursor);
+
+  const allPosts = await getAllPublishedPosts();
+  const ranked = sortByPublishedAtDesc(allPosts).slice(0, limit);
+
+  const pageItems = ranked.slice(startIndex, startIndex + pageSize);
+  const hasMore = startIndex + pageSize < ranked.length;
+
+  return {
+    data: pageItems,
+    hasMore,
+    nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
+    total: ranked.length,
+  };
+}
+
+export async function getHotPostsWindow(options?: {
+  pageSize?: number;
+  startCursor?: string;
+  limit?: number;
+}) {
+  const pageSize = options?.pageSize || 12;
+  const limit = Math.min(options?.limit || 100, 100);
+  const startIndex = parseCursorToIndex(options?.startCursor);
+
+  const allPosts = await getAllPublishedPosts();
+  const likeCounts = await getLikeCounts(allPosts.map((post) => post.id));
+
+  const ranked = [...allPosts]
+    .sort((a, b) => {
+      const likeDiff = (likeCounts[b.id] || 0) - (likeCounts[a.id] || 0);
+      if (likeDiff !== 0) return likeDiff;
+
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+
+  const pageItems = ranked.slice(startIndex, startIndex + pageSize);
+  const hasMore = startIndex + pageSize < ranked.length;
+  const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
+    acc[post.id] = likeCounts[post.id] || 0;
+    return acc;
+  }, {});
+
+  return {
+    data: pageItems,
+    hasMore,
+    nextCursor: hasMore ? String(startIndex + pageSize) : undefined,
+    total: ranked.length,
+    likeCounts: countsForPage,
+  };
+}
