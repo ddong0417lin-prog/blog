@@ -57,7 +57,7 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
 
   return (
     <div
-      className="not-prose my-4 overflow-hidden rounded-lg [&_pre]:!bg-transparent [&_pre]:!p-0"
+      className="not-prose my-5 overflow-hidden rounded-xl border border-border/80 bg-muted/55 p-3 shadow-sm [&_pre]:!m-0 [&_pre]:!bg-transparent [&_pre]:!p-0"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

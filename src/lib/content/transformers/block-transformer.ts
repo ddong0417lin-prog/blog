@@ -19,7 +19,7 @@ import {
   BlockType,
 } from '@/contracts/types';
 
-import { richTextToHtml, richTextToMarkdown } from './rich-text-transformer';
+import { richTextToHtml, richTextToMarkdown, richTextToPlainText } from './rich-text-transformer';
 
 /**
  * Notion Block 类型到内部 BlockType 的映射
@@ -79,6 +79,14 @@ function extractRichText(block: BlockObjectResponse): RichTextItemResponse[] {
 function extractRichTextContent(block: BlockObjectResponse): string {
   const richText = extractRichText(block);
   return richTextToHtml(richText);
+}
+
+/**
+ * 提取纯文本（用于代码块等需要保留原文的场景）
+ */
+function extractPlainTextContent(block: BlockObjectResponse): string {
+  const richText = extractRichText(block);
+  return richTextToPlainText(richText);
 }
 
 /**
@@ -257,7 +265,7 @@ export function transformBlockToInternal(
       break;
 
     case 'code':
-      content = extractRichTextContent(block);
+      content = extractPlainTextContent(block);
       props = { language: extractCodeLanguage(block) };
       break;
 

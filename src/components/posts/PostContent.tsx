@@ -1,4 +1,6 @@
 import type { Block } from '@/contracts/types';
+import { CodeBlock } from '@/components/content/CodeBlock';
+import type { ReactNode } from 'react';
 
 interface PostContentProps {
   content: Block[];
@@ -14,12 +16,60 @@ export function PostContent({ content }: PostContentProps) {
   }
 
   return (
-    <div className="prose prose-neutral dark:prose-invert max-w-none">
-      {content.map((block, index) => (
-        <BlockRenderer key={block.id || index} block={block} />
-      ))}
+    <div className="prose-notion max-w-none">
+      <BlockFlowRenderer content={content} />
     </div>
   );
+}
+
+function BlockFlowRenderer({ content }: { content: Block[] }) {
+  const nodes: ReactNode[] = [];
+
+  for (let index = 0; index < content.length; index++) {
+    const block = content[index];
+
+    if (block.type === 'bulleted_list_item' || block.type === 'numbered_list_item') {
+      const listType = block.type;
+      const items: Block[] = [block];
+      let cursor = index + 1;
+
+      while (cursor < content.length && content[cursor].type === listType) {
+        items.push(content[cursor]);
+        cursor++;
+      }
+
+      if (listType === 'bulleted_list_item') {
+        nodes.push(
+          <ul key={`ul-${block.id || index}`} className="notion-list notion-list--bullet">
+            {items.map((item, itemIndex) => (
+              <li
+                key={item.id || `${index}-${itemIndex}`}
+                dangerouslySetInnerHTML={{ __html: item.content }}
+              />
+            ))}
+          </ul>
+        );
+      } else {
+        nodes.push(
+          <ol key={`ol-${block.id || index}`} className="notion-list notion-list--number">
+            {items.map((item, itemIndex) => (
+              <li
+                key={item.id || `${index}-${itemIndex}`}
+                dangerouslySetInnerHTML={{ __html: item.content }}
+              />
+            ))}
+          </ol>
+        );
+      }
+
+      index = cursor - 1;
+      continue;
+    }
+
+    nodes.push(<BlockRenderer key={block.id || index} block={block} />);
+  }
+
+  return <>{nodes}</>;
 }
 
 function BlockRenderer({ block }: { block: Block }) {
@@ -38,7 +88,7 @@ function BlockRenderer({ block }: { block: Block }) {
       return (
         <p
           id={block.id}
-          className="scroll-mt-20"
+          className="notion-paragraph scroll-mt-24"
           dangerouslySetInnerHTML={{ __html: block.content }}
         />
       );
@@ -47,7 +97,7 @@ function BlockRenderer({ block }: { block: Block }) {
       return (
         <h2
           id={block.id}
-          className="scroll-mt-20"
+          className="notion-heading notion-heading--h1 scroll-mt-24"
           dangerouslySetInnerHTML={{ __html: block.content }}
         />
       );
@@ -56,7 +106,7 @@ function BlockRenderer({ block }: { block: Block }) {
       return (
         <h3
           id={block.id}
-          className="scroll-mt-20"
+          className="notion-heading notion-heading--h2 scroll-mt-24"
           dangerouslySetInnerHTML={{ __html: block.content }}
         />
       );
@@ -65,22 +115,16 @@ function BlockRenderer({ block }: { block: Block }) {
       return (
         <h4
           id={block.id}
-          className="scroll-mt-20"
+          className="notion-heading notion-heading--h3 scroll-mt-24"
           dangerouslySetInnerHTML={{ __html: block.content }}
         />
       );
 
     case 'code':
-      return (
-        <pre className="overflow-x-auto">
-          <code className={`language-${(block.props?.language as string) || 'text'}`}>
-            {block.content}
-          </code>
-        </pre>
-      );
+      return <CodeBlock code={block.content} language={(block.props?.language as string) || 'text'} />;
 
     case 'quote':
-      return renderHtml('blockquote');
+      return renderHtml('blockquote', 'notion-quote');
 
     case 'image': {
       const caption = block.props?.caption as string | undefined;
@@ -101,13 +145,11 @@ function BlockRenderer({ block }: { block: Block }) {
     }
 
     case 'bulleted_list_item':
-      return renderHtml('li');
-
     case 'numbered_list_item':
-      return renderHtml('li');
+      return null;
 
     case 'divider':
-      return <hr className="my-8" />;
+      return <hr className="notion-divider" />;
 
     case 'callout': {
       const icon = block.props?.icon as string | undefined;
