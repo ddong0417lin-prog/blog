@@ -20,17 +20,19 @@ export function SearchButton({ variant = 'ghost', showLabel = false }: SearchBut
 
   return (
     <>
-      <Button
-        variant={variant}
-        size={showLabel ? 'default' : 'icon'}
-        onClick={() => setOpen(true)}
-        className="relative gap-2"
-        aria-label="搜索"
-      >
-        <Search className="h-4 w-4" />
-        {showLabel && <span>搜索</span>}
+      <div className="flex items-center gap-1">
+        <Button
+          variant={variant}
+          size={showLabel ? 'default' : 'icon'}
+          onClick={() => setOpen(true)}
+          className="gap-2"
+          aria-label="搜索"
+        >
+          <Search className="h-4 w-4" />
+          {showLabel && <span>搜索</span>}
+        </Button>
         {!showLabel && (
-          <div className="pointer-events-none absolute right-1.5 top-1.5 hidden select-none items-center gap-1 sm:flex">
+          <div className="pointer-events-none hidden select-none items-center gap-1 sm:flex">
             <kbd className="h-5 rounded border bg-muted px-1.5 font-mono text-[11px] font-semibold text-foreground/90">
               {isMac ? '⌘' : 'Ctrl'}
             </kbd>
@@ -39,7 +41,7 @@ export function SearchButton({ variant = 'ghost', showLabel = false }: SearchBut
             </kbd>
           </div>
         )}
-      </Button>
+      </div>
       <SearchDialog open={open} onOpenChange={setOpen} />
     </>
   );
