@@ -11,6 +11,31 @@
 
 import type { PostSummary, Tag, Category } from '@/contracts/types';
 import { filterPublishedPosts } from './filter';
+import { resolveSlugConflict } from './slug';
+
+function normalizeDisplaySlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\\/]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'untitled';
+}
+
+function toStableSlugRecords<T extends { name: string; count: number }>(
+  items: T[]
+): Array<T & { slug: string }> {
+  const existing = new Set<string>();
+  return items.map((item) => {
+    const slug = resolveSlugConflict(normalizeDisplaySlug(item.name), existing);
+    existing.add(slug);
+    return {
+      ...item,
+      slug,
+    };
+  });
+}
 
 /**
  * 从文章列表提取所有标签及其出现次数
@@ -42,11 +67,12 @@ export function extractTags(posts: PostSummary[]): Tag[] {
   }
 
   // 转换为 Tag 数组并排序
-  const tags: Tag[] = Array.from(tagCounts.entries()).map(([name, count]) => ({
-    name,
-    slug: name.toLowerCase().replace(/\s+/g, '-'),
-    count,
-  }));
+  const tags: Tag[] = toStableSlugRecords(
+    Array.from(tagCounts.entries()).map(([name, count]) => ({
+      name,
+      count,
+    }))
+  );
 
   // 按数量降序排序，相同数量则按名称排序
   return tags.sort((a, b) => {
@@ -80,12 +106,11 @@ export function extractCategories(posts: PostSummary[]): Category[] {
   }
 
   // 转换为 Category 数组并排序
-  const categories: Category[] = Array.from(categoryCounts.entries()).map(
-    ([name, count]) => ({
+  const categories: Category[] = toStableSlugRecords(
+    Array.from(categoryCounts.entries()).map(([name, count]) => ({
       name,
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
       count,
-    })
+    }))
   );
 
   // 按数量降序排序，相同数量则按名称排序
@@ -148,11 +173,12 @@ export function getPostTags(post: PostSummary): Tag[] {
   }
 
   // 统计单个文章的标签（每个标签 count 为 1）
-  return post.tags.map((name: string) => ({
-    name,
-    slug: name.toLowerCase().replace(/\s+/g, '-'),
-    count: 1,
-  }));
+  return toStableSlugRecords(
+    post.tags.map((name: string) => ({
+      name,
+      count: 1,
+    }))
+  );
 }
 
 /**
@@ -165,7 +191,7 @@ export function getPostCategory(post: PostSummary): Category {
   const name = post.category || 'Uncategorized';
   return {
     name,
-    slug: name.toLowerCase().replace(/\s+/g, '-'),
+    slug: normalizeDisplaySlug(name),
     count: 1,
   };
 }

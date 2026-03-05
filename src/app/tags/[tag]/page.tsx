@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getAllTags, getPostsByTag } from '@/app/actions/get-posts';
 import { PostList } from '@/components/posts/PostList';
+import { generateSlug } from '@/lib/content';
 
 interface TagPageProps {
   params: Promise<{ tag: string }>;
@@ -15,13 +16,26 @@ export async function generateStaticParams() {
 }
 
 function resolveTagByParam(tags: Array<{ name: string; slug: string }>, rawParam: string) {
-  const decoded = decodeURIComponent(rawParam);
-  const normalized = decoded.toLowerCase();
+  let decoded = rawParam;
+  try {
+    decoded = decodeURIComponent(rawParam);
+  } catch {
+    // no-op: keep raw input
+  }
+  const normalized = decoded.trim().toLowerCase();
+  const normalizedSlug = generateSlug(decoded).toLowerCase();
 
   return tags.find((tag) => {
-    const slug = tag.slug.toLowerCase();
-    const name = tag.name.toLowerCase();
-    return slug === normalized || name === normalized;
+    const slug = tag.slug.trim().toLowerCase();
+    const name = tag.name.trim().toLowerCase();
+    const generatedNameSlug = generateSlug(tag.name).toLowerCase();
+    return (
+      slug === normalized ||
+      name === normalized ||
+      slug === normalizedSlug ||
+      generatedNameSlug === normalized ||
+      generatedNameSlug === normalizedSlug
+    );
   });
 }
 
@@ -65,4 +79,3 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
     </div>
   );
 }
-

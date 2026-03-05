@@ -34,11 +34,188 @@ import {
   transformToPostSummary,
   transformToPostDetail,
   transformToPostSummaries,
+  DEFAULT_PROPERTY_MAPPING,
 } from '../transformers/post-transformer';
 
 import { sortPosts } from '../utils/sort';
 import { filterPublishedPosts } from '../utils/filter';
 import { extractTags, extractCategories } from '../utils/stats';
+
+type CanonicalField =
+  | 'title'
+  | 'slug'
+  | 'tags'
+  | 'category'
+  | 'status'
+  | 'publishedAt'
+  | 'excerpt'
+  | 'cover';
+
+type NotionPropertyLike = {
+  id?: string;
+  type?: string;
+  [key: string]: unknown;
+};
+
+const PROPERTY_TYPE_PRIORITY: Record<CanonicalField, string[]> = {
+  title: ['title'],
+  slug: ['rich_text', 'title'],
+  tags: ['multi_select', 'select'],
+  category: ['select', 'multi_select', 'status', 'rich_text'],
+  status: ['status', 'select', 'rich_text'],
+  publishedAt: ['date'],
+  excerpt: ['rich_text', 'title'],
+  cover: ['files', 'url', 'rich_text'],
+};
+
+const PROPERTY_ALIASES: Record<CanonicalField, string[]> = {
+  title: ['标题', 'title', 'name', '名称'],
+  slug: ['slug', 'url', '链接', 'path'],
+  tags: ['标签', 'tag', 'tags', 'topics'],
+  category: ['类型', '分类', 'category', 'categories'],
+  status: ['状态', 'status', '发布状态'],
+  publishedAt: ['日期', '发布时间', 'publishedat', 'published_at', 'publish date'],
+  excerpt: ['摘要', 'description', 'excerpt', '描述'],
+  cover: ['封面', 'cover', 'cover image'],
+};
+
+const PROPERTY_ENV_KEYS: Record<CanonicalField, string> = {
+  title: 'NOTION_PROP_TITLE',
+  slug: 'NOTION_PROP_SLUG',
+  tags: 'NOTION_PROP_TAGS',
+  category: 'NOTION_PROP_CATEGORY',
+  status: 'NOTION_PROP_STATUS',
+  publishedAt: 'NOTION_PROP_PUBLISHED_AT',
+  excerpt: 'NOTION_PROP_EXCERPT',
+  cover: 'NOTION_PROP_COVER',
+};
+
+function normalizeToken(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function parseEnvCandidates(envKey: string): string[] {
+  return (process.env[envKey] || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getCandidateNames(field: CanonicalField): string[] {
+  const canonicalName = DEFAULT_PROPERTY_MAPPING[field];
+  const envCandidates = parseEnvCandidates(PROPERTY_ENV_KEYS[field]);
+  const merged = [canonicalName, ...envCandidates, ...PROPERTY_ALIASES[field]];
+  const seen = new Set<string>();
+
+  return merged.filter((value) => {
+    const key = normalizeToken(value);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function resolvePropertyName(
+  properties: Record<string, NotionPropertyLike>,
+  field: CanonicalField
+): string | undefined {
+  const candidates = getCandidateNames(field);
+  const normalizedCandidates = new Set(candidates.map(normalizeToken));
+
+  for (const candidate of candidates) {
+    if (candidate in properties) {
+      return candidate;
+    }
+  }
+
+  for (const propertyName of Object.keys(properties)) {
+    if (normalizedCandidates.has(normalizeToken(propertyName))) {
+      return propertyName;
+    }
+  }
+
+  for (const expectedType of PROPERTY_TYPE_PRIORITY[field]) {
+    for (const [propertyName, property] of Object.entries(properties)) {
+      if (property?.type !== expectedType) {
+        continue;
+      }
+
+      const normalizedName = normalizeToken(propertyName);
+      if (
+        candidates.some((candidate) => normalizedName.includes(normalizeToken(candidate)))
+      ) {
+        return propertyName;
+      }
+    }
+  }
+
+  for (const expectedType of PROPERTY_TYPE_PRIORITY[field]) {
+    const fallback = Object.entries(properties).find(
+      ([, property]) => property?.type === expectedType
+    );
+    if (fallback) {
+      return fallback[0];
+    }
+  }
+
+  return undefined;
+}
+
+function normalizePagePropertiesForTransformer<T extends { properties?: Record<string, NotionPropertyLike> }>(
+  page: T
+): T {
+  if (!page?.properties) {
+    return page;
+  }
+
+  const properties = page.properties;
+  const canonicalFields: CanonicalField[] = [
+    'title',
+    'slug',
+    'tags',
+    'category',
+    'status',
+    'publishedAt',
+    'excerpt',
+    'cover',
+  ];
+
+  let clonedProperties: Record<string, NotionPropertyLike> | null = null;
+
+  for (const field of canonicalFields) {
+    const canonicalName = DEFAULT_PROPERTY_MAPPING[field];
+    if (properties[canonicalName]) {
+      continue;
+    }
+
+    const resolvedName = resolvePropertyName(properties, field);
+    if (!resolvedName || !properties[resolvedName]) {
+      continue;
+    }
+
+    if (!clonedProperties) {
+      clonedProperties = { ...properties };
+    }
+    clonedProperties[canonicalName] = properties[resolvedName];
+  }
+
+  if (!clonedProperties) {
+    return page;
+  }
+
+  return {
+    ...page,
+    properties: clonedProperties,
+  };
+}
+
+function normalizePagesForTransformer<T extends { properties?: Record<string, NotionPropertyLike> }>(
+  pages: T[]
+): T[] {
+  return pages.map((page) => normalizePagePropertiesForTransformer(page));
+}
 
 /**
  * 缓存 TTL 配置（秒）
@@ -123,7 +300,8 @@ class PostServiceImpl implements ContentService {
           { maxItems: MAX_PUBLISHED_POSTS }
         );
 
-        return filterPublishedPosts(transformToPostSummaries(allPages as any[]));
+        const normalizedPages = normalizePagesForTransformer(allPages as any[]);
+        return filterPublishedPosts(transformToPostSummaries(normalizedPages as any[]));
       },
       cacheKey,
       { ttl: CACHE_TTL.ALL_PUBLISHED }
@@ -162,7 +340,8 @@ class PostServiceImpl implements ContentService {
           startCursor,
         });
 
-        const posts = transformToPostSummaries(queryResult.results as any[]);
+        const normalizedPages = normalizePagesForTransformer(queryResult.results as any[]);
+        const posts = transformToPostSummaries(normalizedPages as any[]);
 
         return {
           data: posts,
@@ -201,7 +380,8 @@ class PostServiceImpl implements ContentService {
           startCursor,
         });
 
-        const posts = transformToPostSummaries(queryResult.results as any[]);
+        const normalizedPages = normalizePagesForTransformer(queryResult.results as any[]);
+        const posts = transformToPostSummaries(normalizedPages as any[]);
 
         // 过滤只保留已发布的文章（额外的安全检查）
         const publishedPosts = filterPublishedPosts(posts);
@@ -333,7 +513,8 @@ class PostServiceImpl implements ContentService {
         const normalizedInput = normalizeSlug(slug);
         const normalizedInputId = normalizeId(slug);
 
-        const summaries = transformToPostSummaries(allPages as any[]);
+        const normalizedPages = normalizePagesForTransformer(allPages as any[]);
+        const summaries = transformToPostSummaries(normalizedPages as any[]);
         let matchedSummary = summaries.find(
           (item) => normalizeSlug(item.slug) === normalizedInput
         );
@@ -345,7 +526,7 @@ class PostServiceImpl implements ContentService {
         }
 
         if (!matchedSummary) {
-          for (const page of allPages as any[]) {
+          for (const page of normalizedPages as any[]) {
             const singleSummary = transformToPostSummary(page);
             if (normalizeSlug(singleSummary.slug) === normalizedInput) {
               matchedSummary = singleSummary;
@@ -358,7 +539,7 @@ class PostServiceImpl implements ContentService {
           return null;
         }
 
-        const page = (allPages as any[]).find((item) => item.id === matchedSummary.id);
+        const page = (normalizedPages as any[]).find((item) => item.id === matchedSummary.id);
         if (!page) {
           return null;
         }
@@ -397,7 +578,8 @@ class PostServiceImpl implements ContentService {
           dataSourceId,
         });
 
-        const posts = transformToPostSummaries(allPostsResult as any[]);
+        const normalizedPages = normalizePagesForTransformer(allPostsResult as any[]);
+        const posts = transformToPostSummaries(normalizedPages as any[]);
 
         return extractTags(posts);
       },
@@ -422,7 +604,8 @@ class PostServiceImpl implements ContentService {
           dataSourceId,
         });
 
-        const posts = transformToPostSummaries(allPostsResult as any[]);
+        const normalizedPages = normalizePagesForTransformer(allPostsResult as any[]);
+        const posts = transformToPostSummaries(normalizedPages as any[]);
 
         return extractCategories(posts);
       },

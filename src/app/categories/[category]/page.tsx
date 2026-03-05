@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getAllCategories, getPostsByCategory } from '@/app/actions/get-posts';
 import { PostList } from '@/components/posts/PostList';
+import { generateSlug } from '@/lib/content';
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
@@ -18,13 +19,26 @@ function resolveCategoryByParam(
   categories: Array<{ name: string; slug: string }>,
   rawParam: string
 ) {
-  const decoded = decodeURIComponent(rawParam);
-  const normalized = decoded.toLowerCase();
+  let decoded = rawParam;
+  try {
+    decoded = decodeURIComponent(rawParam);
+  } catch {
+    // no-op: keep raw input
+  }
+  const normalized = decoded.trim().toLowerCase();
+  const normalizedSlug = generateSlug(decoded).toLowerCase();
 
   return categories.find((cat) => {
-    const slug = cat.slug.toLowerCase();
-    const name = cat.name.toLowerCase();
-    return slug === normalized || name === normalized;
+    const slug = cat.slug.trim().toLowerCase();
+    const name = cat.name.trim().toLowerCase();
+    const generatedNameSlug = generateSlug(cat.name).toLowerCase();
+    return (
+      slug === normalized ||
+      name === normalized ||
+      slug === normalizedSlug ||
+      generatedNameSlug === normalized ||
+      generatedNameSlug === normalizedSlug
+    );
   });
 }
 
@@ -66,4 +80,3 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     </div>
   );
 }
-
