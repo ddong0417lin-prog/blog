@@ -15,7 +15,6 @@ import { ISR_CONFIG } from '@/lib/constants';
 import {
   getCommentCounts,
   getLikeCounts,
-  getRankedPostIds,
   getViewCounts,
 } from '@/lib/redis/client';
 
@@ -145,15 +144,6 @@ function sortByPublishedAtDesc<T extends { publishedAt: string | null }>(items: 
   });
 }
 
-function pickFromRankedIds<T extends { id: string }>(
-  allItems: T[],
-  ids: string[]
-): T[] {
-  if (ids.length === 0) return [];
-  const byId = new Map(allItems.map((item) => [item.id, item] as const));
-  return ids.map((id) => byId.get(id)).filter(Boolean) as T[];
-}
-
 export async function getLatestPostsWindow(options?: {
   pageSize?: number;
   startCursor?: string;
@@ -199,19 +189,9 @@ export async function getHotPostsWindow(options?: {
     })
     .slice(0, limit);
 
-  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
-    'likes',
-    startIndex,
-    pageSize,
-    limit
-  );
-
-  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
-  const pageItems =
-    rankedFromIndex.length > 0
-      ? rankedFromIndex
-      : rankedByValue.slice(startIndex, startIndex + pageSize);
-  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  // Always paginate from full ranked list so zero-like posts are still included.
+  const pageItems = rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedByValue.length;
   const hasMore = startIndex + pageSize < total;
   const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
     acc[post.id] = likeCountsAll[post.id] || 0;
@@ -249,19 +229,9 @@ export async function getMostViewedPostsWindow(options?: {
     })
     .slice(0, limit);
 
-  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
-    'views',
-    startIndex,
-    pageSize,
-    limit
-  );
-
-  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
-  const pageItems =
-    rankedFromIndex.length > 0
-      ? rankedFromIndex
-      : rankedByValue.slice(startIndex, startIndex + pageSize);
-  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  // Always paginate from full ranked list so zero-view posts are still included.
+  const pageItems = rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedByValue.length;
   const hasMore = startIndex + pageSize < total;
   const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
     acc[post.id] = viewCountsAll[post.id] || 0;
@@ -299,19 +269,9 @@ export async function getMostCommentedPostsWindow(options?: {
     })
     .slice(0, limit);
 
-  const { ids: rankedIds, total: rankedTotal } = await getRankedPostIds(
-    'comments',
-    startIndex,
-    pageSize,
-    limit
-  );
-
-  const rankedFromIndex = pickFromRankedIds(allPosts, rankedIds);
-  const pageItems =
-    rankedFromIndex.length > 0
-      ? rankedFromIndex
-      : rankedByValue.slice(startIndex, startIndex + pageSize);
-  const total = rankedFromIndex.length > 0 ? rankedTotal : rankedByValue.length;
+  // Always paginate from full ranked list so zero-comment posts are still included.
+  const pageItems = rankedByValue.slice(startIndex, startIndex + pageSize);
+  const total = rankedByValue.length;
   const hasMore = startIndex + pageSize < total;
   const countsForPage = pageItems.reduce<Record<string, number>>((acc, post) => {
     acc[post.id] = commentCountsAll[post.id] || 0;
