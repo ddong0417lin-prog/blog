@@ -164,6 +164,30 @@
   white-space: pre;
 }
 
+.code-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.55) hsl(var(--border) / 0.45);
+}
+
+.code-scrollbar::-webkit-scrollbar {
+  height: 0.8rem;
+}
+
+.code-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--border) / 0.45);
+  border-radius: 999px;
+}
+
+.code-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.55);
+  border-radius: 999px;
+  border: 2px solid hsl(var(--background) / 0.6);
+}
+
+.code-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.75);
+}
+
 .fx-layer {
   pointer-events: none;
   position: fixed;
