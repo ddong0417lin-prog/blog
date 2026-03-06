@@ -10,6 +10,11 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import {
+  codeBlockFrameClassName,
+  codeBlockInnerPreClassName,
+  codeBlockScrollContainerClassName,
+} from '@/components/content/code-block-styles';
 
 interface CodeBlockProps {
   code: string;
@@ -38,7 +43,7 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
         setHtml(data.html);
       } catch {
         // 降级显示
-        setHtml(`<pre class="overflow-x-auto p-4 bg-muted rounded-lg"><code>${escapeHtml(code)}</code></pre>`);
+        setHtml(`<pre class="${codeBlockInnerPreClassName}"><code>${escapeHtml(code)}</code></pre>`);
       }
     }
 
@@ -49,17 +54,23 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
 
   if (!mounted) {
     return (
-      <pre className="overflow-x-auto p-4 bg-muted rounded-lg">
-        <code>{code}</code>
-      </pre>
+      <div className={codeBlockFrameClassName}>
+        <div className={codeBlockScrollContainerClassName}>
+          <pre className={codeBlockInnerPreClassName}>
+            <code>{code}</code>
+          </pre>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div
-      className="not-prose my-5 rounded-xl border border-border/80 bg-muted/55 p-3 shadow-sm [&_pre]:!m-0 [&_pre]:!overflow-x-auto [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:[-webkit-overflow-scrolling:touch]"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className={codeBlockFrameClassName}>
+      <div
+        className={`${codeBlockScrollContainerClassName} [&_pre]:!m-0 [&_pre]:!inline-block [&_pre]:!min-w-full [&_pre]:!overflow-visible [&_pre]:!bg-transparent [&_pre]:!p-3`}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }
 
