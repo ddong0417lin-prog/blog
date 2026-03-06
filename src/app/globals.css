@@ -188,6 +188,16 @@
   background: hsl(var(--muted-foreground) / 0.75);
 }
 
+.code-scroll-content {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.code-scroll-content::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
 .fx-layer {
   pointer-events: none;
   position: fixed;

@@ -7,6 +7,7 @@ import {
 } from '../src/components/content/code-block-styles.ts';
 
 test('code block scroll container keeps horizontal scrolling without blocking vertical page scroll', () => {
+  assert.match(codeBlockScrollContainerClassName, /\bcode-scroll-content\b/);
   assert.match(codeBlockScrollContainerClassName, /\boverflow-x-auto\b/);
   assert.match(codeBlockScrollContainerClassName, /\[overscroll-behavior-x:contain\]/);
   assert.match(codeBlockScrollContainerClassName, /\[-webkit-overflow-scrolling:touch\]/);
